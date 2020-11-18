@@ -70,6 +70,8 @@ function M.open(dir)
   vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "<cmd>lua require('dirbuf').enter()<cr>", {noremap = true, silent = true})
   vim.api.nvim_buf_set_keymap(buf, "n", "gd",   "<cmd>DirbufPrintln<cr>", {noremap = true, silent = true})
 
+  vim.api.nvim_buf_set_option(buf, "filetype", "dirbuf")
+
   -- Buffer is finished. Show it
   vim.api.nvim_win_set_buf(0, buf)
 
