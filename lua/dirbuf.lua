@@ -26,7 +26,8 @@ function M.println(lineno)
   print(hash .. " = " .. vim.inspect(vim.b.dirbuf.file_info[hash]))
 end
 
--- TODO: Conditionally split based on whether bang is there or not
+-- TODO: I need to determine how to save the previous cdpath and restore it when the dirbuf is exited
+-- TODO: Conditionally split based on whether bang is there or not. Or do I even want this?
 function M.open(dir)
   if dir == "" then
     dir = "."
@@ -43,6 +44,7 @@ function M.open(dir)
   assert(buf ~= 0)
 
   -- Fill out buffer
+  -- TODO: Maybe add a ../ at the top? Not sold in the idea
   local buf_lines = {}
   local file_info = {}
   while true do
@@ -54,12 +56,14 @@ function M.open(dir)
       fname = fname .. "/"
     end
 
+    -- TODO: Do actual escaping here. Don't just quote everything and hope for the best
     local line = {"'", fname, "'"}
     local hash = md5.sumhexa(fname):sub(1, HASH_LEN)
     file_info[hash] = {
       fname = fname,
       ftype = ftype,
     }
+    -- TODO: Make the hashes line up
     table.insert(line, "        #" .. hash)
     table.insert(buf_lines, table.concat(line))
   end
