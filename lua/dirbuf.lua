@@ -50,6 +50,8 @@ function M.open(dir)
     end
     if ftype == "directory" then
       fname = fname .. "/"
+    elseif ftype == "link" then
+      fname = fname .. "@"
     end
 
     -- TODO: Maybe don't always quote like this?
