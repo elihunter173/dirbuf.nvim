@@ -54,6 +54,7 @@ function M.open(dir)
     if fname == nil then
       break
     end
+    -- TODO: Should I actually modify the fname like this?
     if ftype == "directory" then
       fname = fname .. "/"
     elseif ftype == "link" then
@@ -114,48 +115,47 @@ local ACTION = {
   DELETE = 2,
 }
 
--- TODO: Figure out rules for how competing deletes, renames, and copies work.
--- Maybe need a temp directory to make them "atomic"?
-function M.sync()
-  -- Parse the buffer to determine what we need to do get directory and dirbuf
-  -- in sync
+-- Given the current state of the directory, `old_state`, and the desired new
+-- state of the directory, `new_state`, determine the most efficient series of
+-- actions necessary to reach the desired state.
+--
+-- old_state: Map from file hash to current state of file
+-- new_state: Map from file hash to list of new associated fstate
+local function determine_plan(current_state, desired_state)
+  local plan = {}
 
-  local file_info = vim.b.dirbuf.file_info
-
-  -- Set of hashes to delete
-  local hashes_to_delete = {}
-  for hash, _ in pairs(file_info) do
-    hashes_to_delete[hash] = true
-  end
-
-  local actions = {}
-  for _, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
-    local fname, hash = parse_line(line)
-    -- We've seen this hash, don't delete it
-    hashes_to_delete[hash] = nil
-
-    local info = file_info[hash]
-    if info.fname ~= fname then
-      -- TODO: Add checks that you aren't trying to change dir to file or vice
-      -- versa
-      table.insert(actions, {
-        type = ACTION.MOVE,
-        old_fname = info.fname,
-        new_fname = fname,
+  for hash, fstates in pairs(desired_state) do
+    if #fstates == 0 then
+      table.insert(plan, {
+        type = ACTION.DELETE,
+        fname = current_state[hash],
       })
+
+    elseif #fstates == 1 then
+      -- TODO: Generalize when we're renaming and copying multiple files
+      local current_fname = current_state[hash].fname
+      local new_fname = fstates[1]
+      if current_fname ~= new_fname then
+        table.insert(plan, {
+          type = ACTION.MOVE,
+          fname = new_fname,
+        })
+      end
+
+    else
+      log.error("not yet supported")
+      return nil
     end
   end
-  for hash, _ in pairs(hashes_to_delete) do
-    table.insert(actions, {
-      type = ACTION.DELETE,
-      fname = file_info[hash].fname,
-    })
-  end
 
+  return plan
+end
+
+local function execute_plan(plan)
   -- Apply those actions
   -- TODO: Make this async
   -- TODO: Check that all actions are valid before taking any action
-  for _, action in pairs(actions) do
+  for _, action in pairs(plan) do
     if action.type == ACTION.MOVE then
       if uv.fs_access(action.new_fname, "W") then
         log.error("file at '%s' already exists", action.new_fname)
@@ -170,8 +170,46 @@ function M.sync()
 
     else
       log.error("unknown action")
+      return false
+    end
+  end
+  return true
+end
+
+-- TODO: Figure out rules for how competing deletes, renames, and copies work.
+-- Maybe need a temp directory to make them "atomic"?
+function M.sync()
+  -- Parse the buffer to determine what we need to do get directory and dirbuf
+  -- in sync
+  local current_state = vim.b.dirbuf.file_info
+
+  -- Map from hash to fnames associated with that hash
+  local desired_state = {}
+  for hash, _ in pairs(current_state) do
+    desired_state[hash] = {}
+  end
+
+  -- Just to ensure we don't reuse fnames
+  local used_fnames = {}
+  for _, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+    local fname, hash = parse_line(line)
+
+    if used_fnames[fname] ~= nil then
+      log.error("duplicate filename '%s'", fname)
       return
     end
+
+    table.insert(desired_state[hash], fname)
+    used_fnames[fname] = true
+  end
+
+  local plan = determine_plan(current_state, desired_state)
+  if plan == nil then
+    return
+  end
+  local ok = execute_plan(plan)
+  if not ok then
+    return
   end
 
   -- TODO: Reload the buffer
