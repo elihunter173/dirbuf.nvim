@@ -2,14 +2,6 @@ local md5 = require("vendor.md5")
 
 local M = {}
 
-local Dirbuf = {}
-
-function Dirbuf:new(o)
-  setmetatable(o, self)
-  self.__index = self
-  return o
-end
-
 local HASH_LEN = 7
 local function parse_line(line)
   local fname, hash = line:match("^'([^']+)'%s*#(%x%x%x%x%x%x%x)$")
@@ -28,6 +20,7 @@ end
 
 -- TODO: I need to determine how to save the previous cdpath and restore it when the dirbuf is exited
 -- TODO: Conditionally split based on whether bang is there or not. Or do I even want this?
+-- TODO: Name the buffer after the directory
 function M.open(dir)
   if dir == "" then
     dir = "."
@@ -47,6 +40,7 @@ function M.open(dir)
   -- TODO: Maybe add a ../ at the top? Not sold in the idea
   local buf_lines = {}
   local file_info = {}
+  local max_len = 0
   while true do
     local fname, ftype = vim.loop.fs_scandir_next(handle)
     if fname == nil then
@@ -56,16 +50,21 @@ function M.open(dir)
       fname = fname .. "/"
     end
 
-    -- TODO: Do actual escaping here. Don't just quote everything and hope for the best
-    local line = {"'", fname, "'"}
+    -- TODO: Maybe don't always quote like this?
+    local line = vim.fn.shellescape(fname)
     local hash = md5.sumhexa(fname):sub(1, HASH_LEN)
     file_info[hash] = {
       fname = fname,
       ftype = ftype,
     }
-    -- TODO: Make the hashes line up
-    table.insert(line, "        #" .. hash)
-    table.insert(buf_lines, table.concat(line))
+    table.insert(buf_lines, {line, nil, "  #"..hash})
+    if #line > max_len then
+      max_len = #line
+    end
+  end
+  for key, tuple in pairs(buf_lines) do
+    tuple[2] = string.rep(" ", max_len - #tuple[1])
+    buf_lines[key] = table.concat(tuple)
   end
   vim.api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
 
@@ -76,17 +75,15 @@ function M.open(dir)
 
   vim.api.nvim_buf_set_option(buf, "filetype", "dirbuf")
 
+  -- TODO: When should I do this? It needs to be after we iterate over the dirs
+  vim.api.nvim_command("cd " .. dir)
+
   -- Buffer is finished. Show it
   vim.api.nvim_win_set_buf(0, buf)
 
-  -- TODO: When should I do this?
-  vim.api.nvim_command("cd " .. dir)
-
   -- Has to be after we focus the buffer
-  -- TODO: Is there a better way to do this?
-  vim.b.dirbuf = Dirbuf:new {
+  vim.b.dirbuf = {
     file_info = file_info,
-    buf = buf,
   }
 end
 
