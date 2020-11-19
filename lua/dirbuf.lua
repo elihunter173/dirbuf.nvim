@@ -1,3 +1,6 @@
+local api = vim.api
+local uv = vim.loop
+
 local md5 = require("vendor.md5")
 
 local M = {}
@@ -14,7 +17,7 @@ end
 
 function M.println(lineno)
   local line = vim.fn.getline(lineno)
-  local fname, hash = parse_line(line)
+  local _, hash = parse_line(line)
   print(hash .. " = " .. vim.inspect(vim.b.dirbuf.file_info[hash]))
 end
 
@@ -26,14 +29,13 @@ function M.open(dir)
     dir = "."
   end
 
-  local handle, err, _ = vim.loop.fs_scandir(dir)
+  local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
-    vim.api.nvim_err_writeln(err)
+    api.nvim_err_writeln(err)
     return
   end
 
-  -- create a scratch buffer
-  local buf = vim.api.nvim_create_buf(true, true)
+  local buf = api.nvim_create_buf(true, false)
   assert(buf ~= 0)
 
   -- Fill out buffer
@@ -42,7 +44,7 @@ function M.open(dir)
   local file_info = {}
   local max_len = 0
   while true do
-    local fname, ftype = vim.loop.fs_scandir_next(handle)
+    local fname, ftype = uv.fs_scandir_next(handle)
     if fname == nil then
       break
     end
@@ -66,20 +68,24 @@ function M.open(dir)
     tuple[2] = string.rep(" ", max_len - #tuple[1])
     buf_lines[key] = table.concat(tuple)
   end
-  vim.api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
+  api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
 
   -- Add keymaps
   -- TODO: Should this be an ftplugin? Probably...
-  vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "<cmd>lua require('dirbuf').enter()<cr>", {noremap = true, silent = true})
-  vim.api.nvim_buf_set_keymap(buf, "n", "gd",   "<cmd>DirbufPrintln<cr>", {noremap = true, silent = true})
+  api.nvim_buf_set_keymap(buf, "n", "<CR>", "<cmd>lua require('dirbuf').enter()<cr>", {noremap = true, silent = true})
+  api.nvim_buf_set_keymap(buf, "n", "gd",   "<cmd>DirbufPrintln<cr>", {noremap = true, silent = true})
 
-  vim.api.nvim_buf_set_option(buf, "filetype", "dirbuf")
+  api.nvim_buf_set_option(buf, "filetype", "dirbuf")
+  -- Us filling the buffer counts as modifying it
+  api.nvim_buf_set_option(buf, "modified", false)
 
-  -- TODO: When should I do this? It needs to be after we iterate over the dirs
-  vim.api.nvim_command("cd " .. dir)
+  api.nvim_buf_set_name(buf, "dirbuf://" .. vim.fn.fnamemodify(dir, ":p"))
+
+  -- This needs to be after we iterate over the dirs
+  api.nvim_command("silent cd " .. dir)
 
   -- Buffer is finished. Show it
-  vim.api.nvim_win_set_buf(0, buf)
+  api.nvim_win_set_buf(0, buf)
 
   -- Has to be after we focus the buffer
   vim.b.dirbuf = {
@@ -93,6 +99,45 @@ function M.enter()
   local fname, hash = parse_line(line)
   assert(vim.b.dirbuf.file_info[hash].ftype == "directory")
   M.open(fname)
+end
+
+local ACTION = {
+  MOVE = 1,
+}
+
+-- TODO: Figure out rules for how competing deletes, renames, and copies work.
+-- Maybe need a temp directory to make them "atomic"?
+function M.sync()
+  -- Parse the buffer to determine what we need to do get directory and dirbuf
+  -- in sync
+  local actions = {}
+  for _, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+    local fname, hash = parse_line(line)
+    local info = vim.b.dirbuf.file_info[hash]
+    if info.fname ~= fname then
+      -- TODO: Add checks that you aren't trying to change dir to file or vice
+      -- versa
+      table.insert(actions, {
+        type = ACTION.MOVE,
+        old_fname = info.fname,
+        new_fname = fname,
+      })
+    end
+  end
+
+  -- Apply those actions
+  -- TODO: Make this async
+  for _, action in pairs(actions) do
+    if action.type == ACTION.MOVE then
+      local ok = uv.fs_rename(action.old_fname, action.new_fname)
+      assert(ok)
+    else
+      print("Error")
+    end
+  end
+
+  -- TODO: Reload the buffer
+  api.nvim_buf_set_option(0, "modified", false)
 end
 
 return M
