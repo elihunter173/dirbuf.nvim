@@ -5,6 +5,12 @@ local md5 = require("vendor.md5")
 
 local M = {}
 
+local log = {
+  error = function(msg, ...)
+    api.nvim_err_writeln(string.format(msg, ...))
+  end,
+}
+
 local HASH_LEN = 7
 local function parse_line(line)
   local fname, hash = line:match("^'([^']+)'%s*#(%x%x%x%x%x%x%x)$")
@@ -31,7 +37,7 @@ function M.open(dir)
 
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
-    api.nvim_err_writeln(err)
+    log.error(err)
     return
   end
 
@@ -129,12 +135,18 @@ function M.sync()
 
   -- Apply those actions
   -- TODO: Make this async
+  -- TODO: Check that all actions are valid before taking any action
   for _, action in pairs(actions) do
     if action.type == ACTION.MOVE then
+      if uv.fs_access(action.new_fname, "W") then
+        log.error("file at '%s' already exists", action.new_fname)
+        return
+      end
       local ok = uv.fs_rename(action.old_fname, action.new_fname)
       assert(ok)
     else
-      print("Error")
+      log.error("unknown action")
+      return
     end
   end
 
