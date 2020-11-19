@@ -111,6 +111,7 @@ end
 
 local ACTION = {
   MOVE = 1,
+  DELETE = 2,
 }
 
 -- TODO: Figure out rules for how competing deletes, renames, and copies work.
@@ -118,10 +119,22 @@ local ACTION = {
 function M.sync()
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
+
+  local file_info = vim.b.dirbuf.file_info
+
+  -- Set of hashes to delete
+  local hashes_to_delete = {}
+  for hash, _ in pairs(file_info) do
+    hashes_to_delete[hash] = true
+  end
+
   local actions = {}
   for _, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
     local fname, hash = parse_line(line)
-    local info = vim.b.dirbuf.file_info[hash]
+    -- We've seen this hash, don't delete it
+    hashes_to_delete[hash] = nil
+
+    local info = file_info[hash]
     if info.fname ~= fname then
       -- TODO: Add checks that you aren't trying to change dir to file or vice
       -- versa
@@ -131,6 +144,12 @@ function M.sync()
         new_fname = fname,
       })
     end
+  end
+  for hash, _ in pairs(hashes_to_delete) do
+    table.insert(actions, {
+      type = ACTION.DELETE,
+      fname = file_info[hash].fname,
+    })
   end
 
   -- Apply those actions
@@ -144,6 +163,11 @@ function M.sync()
       end
       local ok = uv.fs_rename(action.old_fname, action.new_fname)
       assert(ok)
+
+    elseif action.type == ACTION.DELETE then
+      local ok = uv.fs_unlink(action.fname)
+      assert(ok)
+
     else
       log.error("unknown action")
       return
