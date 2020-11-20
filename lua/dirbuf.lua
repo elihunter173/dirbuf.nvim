@@ -5,9 +5,16 @@ local md5 = require("vendor.md5")
 
 local M = {}
 
+-- TODO: Switch error handling to use error and pcall
 local log = {
-  error = function(msg, ...)
-    api.nvim_err_writeln(string.format(msg, ...))
+  error = function(...)
+    api.nvim_err_writeln("[dirbuf] " .. string.format(...))
+  end,
+  warn = function(...)
+    print(vim.fn.escape(string.format(...), "'"))
+    vim.cmd("echohl WarningMsg")
+    vim.cmd("echom '[dirbuf] " .. vim.fn.escape(string.format(...), "'") .. "'")
+    vim.cmd("echohl None")
   end,
 }
 
@@ -62,7 +69,7 @@ function M.open(dir)
     end
 
     -- TODO: Maybe don't always quote like this?
-    local line = vim.fn.shellescape(fname)
+    local line = vim.fn.fnameescape(fname)
     local hash = md5.sumhexa(fname):sub(1, HASH_LEN)
     file_info[hash] = {
       fname = fname,
@@ -91,7 +98,7 @@ function M.open(dir)
   api.nvim_buf_set_name(buf, "dirbuf://" .. vim.fn.fnamemodify(dir, ":p"))
 
   -- This needs to be after we iterate over the dirs
-  api.nvim_command("silent cd " .. dir)
+  vim.cmd("silent cd " .. dir)
 
   -- Buffer is finished. Show it
   api.nvim_win_set_buf(0, buf)
@@ -103,6 +110,11 @@ function M.open(dir)
 end
 
 function M.enter()
+  if api.nvim_buf_get_option(0, "modified") then
+    log.error("dirbuf must be saved first")
+    return
+  end
+
   -- TODO: Is there a better way to do this?
   local line = vim.fn.getline(".")
   local fname, hash = parse_line(line)
