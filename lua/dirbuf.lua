@@ -91,6 +91,9 @@ function M.open(dir)
   api.nvim_buf_set_keymap(buf, "n", "<CR>", "<cmd>lua require('dirbuf').enter()<cr>", {noremap = true, silent = true})
   api.nvim_buf_set_keymap(buf, "n", "gd",   "<cmd>DirbufPrintln<cr>", {noremap = true, silent = true})
 
+  -- TODO: Figure out how to set the cursor line. Should I even?
+  -- api.nvim_win_set_option(0, "cursorline", true)
+
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   -- Us filling the buffer counts as modifying it
   api.nvim_buf_set_option(buf, "modified", false)
