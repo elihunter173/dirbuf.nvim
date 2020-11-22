@@ -206,8 +206,12 @@ function M.sync()
 
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
-  for _, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+  for lnum, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
     local fname, hash = parse_line(line)
+    if fname == nil then
+      log.error("malformed line: %d", lnum)
+      return
+    end
 
     if used_fnames[fname] ~= nil then
       log.error("duplicate filename '%s'", fname)
