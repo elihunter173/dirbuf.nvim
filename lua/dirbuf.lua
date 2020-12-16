@@ -43,14 +43,12 @@ function M.parse_line(line)
   end
   local fname = table.concat(string_builder)
 
-  -- TODO: Fix this with trailing whitespace
   local hash = line:match("#(%x%x%x%x%x%x%x)$")
   return fname, hash
 end
 
 -- TODO: I need to determine how to save the previous cdpath and restore it when the dirbuf is exited
 -- TODO: Conditionally split based on whether bang is there or not. Or do I even want this?
--- TODO: Name the buffer after the directory
 function M.open(dir)
   if dir == "" then
     dir = "."
@@ -62,13 +60,19 @@ function M.open(dir)
     return
   end
 
+  -- Don't create buf until we know the directory exists
   local buf = api.nvim_create_buf(true, false)
   assert(buf ~= 0)
 
   -- Fill out buffer
   -- TODO: Maybe add a ../ at the top? Not sold in the idea
-  local buf_lines = {}
+  -- Stores file info by hash
   local file_info = {}
+  -- Stores (fname_esc, padding, hash) tuples which we will join into strings
+  -- later to form the buffer's lines. We fill in the padding at the end to
+  -- line up the hashes.
+  local buf_lines = {}
+  -- Used to we can make all the hashes line up
   local max_len = 0
   while true do
     local fname, ftype = uv.fs_scandir_next(handle)
@@ -83,19 +87,20 @@ function M.open(dir)
       fname = fname .. "@"
     end
 
-    -- TODO: Maybe don't always quote like this?
-    local line = vim.fn.fnameescape(fname)
+    local fname_esc = vim.fn.fnameescape(fname)
     local hash = md5.sumhexa(fname):sub(1, HASH_LEN)
     assert(file_info[hash] == nil)
     file_info[hash] = {
       fname = fname,
       ftype = ftype,
     }
-    table.insert(buf_lines, {line, nil, "  #"..hash})
-    if #line > max_len then
-      max_len = #line
+    table.insert(buf_lines, {fname_esc, nil, "  #"..hash})
+    if #fname_esc > max_len then
+      max_len = #fname_esc
     end
   end
+  -- Now fill in the padding in the (fname_esc, padding, hash) tuples with
+  -- appropriate padding such that the hashes line up
   for key, tuple in pairs(buf_lines) do
     tuple[2] = string.rep(" ", max_len - #tuple[1])
     buf_lines[key] = table.concat(tuple)
@@ -186,7 +191,8 @@ end
 local function execute_plan(plan)
   -- Apply those actions
   -- TODO: Make this async
-  -- TODO: Check that all actions are valid before taking any action
+  -- TODO: Check that all actions are valid before taking any action?
+  -- determine_plan should only generate valid plans
   for _, action in pairs(plan) do
     if action.type == ACTION.MOVE then
       if uv.fs_access(action.new_fname, "W") then
