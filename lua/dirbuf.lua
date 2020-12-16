@@ -148,8 +148,9 @@ function M.enter()
 end
 
 local ACTION = {
-  MOVE = 1,
+  COPY = 1,
   DELETE = 2,
+  MOVE = 3,
 }
 
 -- Given the current state of the directory, `old_state`, and the desired new
@@ -165,17 +166,52 @@ local function determine_plan(current_state, desired_state)
     if #fstates == 0 then
       table.insert(plan, {
         type = ACTION.DELETE,
-        fname = current_state[hash],
+        fname = current_state[hash].fname,
       })
 
-    elseif #fstates == 1 then
-      -- TODO: Generalize when we're renaming and copying multiple files
+    elseif #fstates > 0 then
       local current_fname = current_state[hash].fname
-      local new_fname = fstates[1]
-      if current_fname ~= new_fname then
+      -- Try to find the current fname in the list of new_fnames. If it's
+      -- there, then we can do nothing. If it's not there, then we copy the
+      -- file n - 1 times and then move for the last file.
+      local one_unchanged = false
+      for _, new_fname in pairs(fstates) do
+        if current_fname == new_fname then
+          one_unchanged = true
+          break
+        end
+      end
+
+      if one_unchanged then
+        for _, new_fname in pairs(fstates) do
+          if current_fname ~= new_fname then
+            table.insert(plan, {
+              type = ACTION.COPY,
+              old_fname = current_fname,
+              new_fname = new_fname,
+            })
+          end
+        end
+
+      else
+        -- TODO: This is gross as fuck
+        local cursor, move_to = next(fstates)
+        while true do
+          local new_fname
+          cursor, new_fname = next(fstates, cursor)
+          if cursor == nil then
+            break
+          end
+          table.insert(plan, {
+            type = ACTION.COPY,
+            old_fname = current_fname,
+            new_fname = new_fname,
+          })
+        end
         table.insert(plan, {
           type = ACTION.MOVE,
-          fname = new_fname,
+          old_fname = current_fname,
+          new_fname = move_to,
         })
       end
 
@@ -194,16 +230,21 @@ local function execute_plan(plan)
   -- TODO: Check that all actions are valid before taking any action?
   -- determine_plan should only generate valid plans
   for _, action in pairs(plan) do
-    if action.type == ACTION.MOVE then
+    if action.type == ACTION.COPY then
+      local ok = uv.fs_copyfile(action.old_fname, action.new_fname, nil)
+      assert(ok)
+
+    elseif action.type == ACTION.DELETE then
+      local ok = uv.fs_unlink(action.fname)
+      assert(ok)
+
+    elseif action.type == ACTION.MOVE then
+      -- TODO: This is a TOCTOU
       if uv.fs_access(action.new_fname, "W") then
         log.error("file at '%s' already exists", action.new_fname)
         return
       end
       local ok = uv.fs_rename(action.old_fname, action.new_fname)
-      assert(ok)
-
-    elseif action.type == ACTION.DELETE then
-      local ok = uv.fs_unlink(action.fname)
       assert(ok)
 
     else
