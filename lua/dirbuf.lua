@@ -5,33 +5,47 @@ local md5 = require("vendor.md5")
 
 local M = {}
 
--- TODO: Switch error handling to use error and pcall
+-- TODO: Switch error handling to use error and pcall?
 local log = {
   error = function(...)
     api.nvim_err_writeln("[dirbuf] " .. string.format(...))
   end,
   warn = function(...)
-    print(vim.fn.escape(string.format(...), "'"))
     vim.cmd("echohl WarningMsg")
     vim.cmd("echom '[dirbuf] " .. vim.fn.escape(string.format(...), "'") .. "'")
     vim.cmd("echohl None")
   end,
+  debug = function(...)
+    print(vim.inspect(...))
+  end,
 }
 
 local HASH_LEN = 7
-local function parse_line(line)
-  local fname, hash = line:match("^'([^']+)'%s*#(%x%x%x%x%x%x%x)$")
+function M.parse_line(line)
+  local string_builder = {}
+  -- We store this in a local so we can skip characters
+  local chars = line:gmatch(".")
+  for c in chars do
+    if c == " " then
+      break
+
+    elseif c == "\\" then
+      local next_c = chars()
+      if next_c == " " or next_c == "\\" then
+        table.insert(string_builder, next_c)
+      else
+        error(string.format("invalid escape sequence '\\%s'", next_c))
+      end
+
+    else
+      table.insert(string_builder, c)
+    end
+  end
+  local fname = table.concat(string_builder)
+
+  -- TODO: Fix this with trailing whitespace
+  local hash = line:match("#(%x%x%x%x%x%x%x)$")
   return fname, hash
-end
-
-function M.debug()
-  print(vim.inspect(vim.b.dirbuf))
-end
-
-function M.println(lineno)
-  local line = vim.fn.getline(lineno)
-  local _, hash = parse_line(line)
-  print(hash .. " = " .. vim.inspect(vim.b.dirbuf.file_info[hash]))
 end
 
 -- TODO: I need to determine how to save the previous cdpath and restore it when the dirbuf is exited
@@ -62,6 +76,7 @@ function M.open(dir)
       break
     end
     -- TODO: Should I actually modify the fname like this?
+    -- TODO: Do all classifiers from here https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
     if ftype == "directory" then
       fname = fname .. "/"
     elseif ftype == "link" then
@@ -71,6 +86,7 @@ function M.open(dir)
     -- TODO: Maybe don't always quote like this?
     local line = vim.fn.fnameescape(fname)
     local hash = md5.sumhexa(fname):sub(1, HASH_LEN)
+    assert(file_info[hash] == nil)
     file_info[hash] = {
       fname = fname,
       ftype = ftype,
@@ -91,7 +107,8 @@ function M.open(dir)
   api.nvim_buf_set_keymap(buf, "n", "<CR>", "<cmd>lua require('dirbuf').enter()<cr>", {noremap = true, silent = true})
   api.nvim_buf_set_keymap(buf, "n", "gd",   "<cmd>DirbufPrintln<cr>", {noremap = true, silent = true})
 
-  -- TODO: Figure out how to set the cursor line. Should I even?
+  -- TODO: Figure out how to set the cursor line. Should I even? I'd like it so
+  -- yeah
   -- api.nvim_win_set_option(0, "cursorline", true)
 
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
@@ -120,7 +137,7 @@ function M.enter()
 
   -- TODO: Is there a better way to do this?
   local line = vim.fn.getline(".")
-  local fname, hash = parse_line(line)
+  local fname, hash = M.parse_line(line)
   assert(vim.b.dirbuf.file_info[hash].ftype == "directory")
   M.open(fname)
 end
@@ -207,7 +224,7 @@ function M.sync()
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
   for lnum, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
-    local fname, hash = parse_line(line)
+    local fname, hash = M.parse_line(line)
     if fname == nil then
       log.error("malformed line: %d", lnum)
       return

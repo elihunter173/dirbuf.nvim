@@ -1,0 +1,25 @@
+local dirbuf = require("dirbuf")
+
+describe("dirbuf.parse_line", function()
+  it("simple line", function()
+    local fname, hash = dirbuf.parse_line([[README.md  #dedbeef]])
+    assert.equal(fname, "README.md")
+    assert.equal(hash, "dedbeef")
+  end)
+
+  it("escaped spaces", function()
+    local fname, hash = dirbuf.parse_line([[\ a\ b\ c\   #0123456]])
+    assert.equal(fname, " a b c ")
+    assert.equal(hash, "0123456")
+  end)
+
+  it("escaped backslashes", function()
+    local fname, hash = dirbuf.parse_line([[before\\after  #0123456]])
+    assert.equal(fname, [[before\after]])
+    assert.equal(hash, "0123456")
+  end)
+
+  it("invalid escape sequence", function()
+    assert.has_error(function() dirbuf.parse_line([[\a  #0123456]]) end)
+  end)
+end)
