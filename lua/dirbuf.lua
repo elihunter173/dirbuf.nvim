@@ -5,6 +5,8 @@ local md5 = require("vendor.md5")
 
 local M = {}
 
+-- TODO: Make visibility make sense for testing
+
 -- TODO: Switch error handling to use error and pcall?
 local log = {
   error = function(...)
@@ -147,11 +149,16 @@ function M.enter()
   M.open(fname)
 end
 
+-- TODO: Move planning to a different file
 local ACTION = {
+  -- old_fname, new_fname
   COPY = 1,
+  -- fname
   DELETE = 2,
+  -- old_fname, new_fname
   MOVE = 3,
 }
+M.ACTION = ACTION
 
 -- Given the current state of the directory, `old_state`, and the desired new
 -- state of the directory, `new_state`, determine the most efficient series of
@@ -159,7 +166,7 @@ local ACTION = {
 --
 -- old_state: Map from file hash to current state of file
 -- new_state: Map from file hash to list of new associated fstate
-local function determine_plan(current_state, desired_state)
+function M.determine_plan(current_state, desired_state)
   local plan = {}
 
   for hash, fstates in pairs(desired_state) do
@@ -282,11 +289,12 @@ function M.sync()
       return
     end
 
+    -- TODO: Get ftype from file ending and make this a map of fstates
     table.insert(desired_state[hash], fname)
     used_fnames[fname] = true
   end
 
-  local plan = determine_plan(current_state, desired_state)
+  local plan = M.determine_plan(current_state, desired_state)
   if plan == nil then
     return
   end
