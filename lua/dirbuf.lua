@@ -3,6 +3,8 @@ local uv = vim.loop
 
 local md5 = require("vendor.md5")
 
+local planner = require("dirbuf.planner")
+
 local M = {}
 
 -- TODO: Make visibility make sense for testing
@@ -23,6 +25,9 @@ local log = {
 }
 
 local HASH_LEN = 7
+local function hash_fname(fname)
+  return md5.sumhexa(fname):sub(1, HASH_LEN)
+end
 function M.parse_line(line)
   local string_builder = {}
   -- We store this in a local so we can skip characters
@@ -89,13 +94,13 @@ function M.open(dir)
       fname = fname .. "@"
     end
 
-    local fname_esc = vim.fn.fnameescape(fname)
-    local hash = md5.sumhexa(fname):sub(1, HASH_LEN)
+    local hash = hash_fname(fname)
     assert(file_info[hash] == nil)
     file_info[hash] = {
       fname = fname,
       ftype = ftype,
     }
+    local fname_esc = vim.fn.fnameescape(fname)
     table.insert(buf_lines, {fname_esc, nil, "  #"..hash})
     if #fname_esc > max_len then
       max_len = #fname_esc
@@ -149,108 +154,6 @@ function M.enter()
   M.open(fname)
 end
 
--- Given the current state of the directory, `old_state`, and the desired new
--- state of the directory, `new_state`, determine the most efficient series of
--- actions necessary to reach the desired state.
---
--- old_state: Map from file hash to current state of file
--- new_state: Map from file hash to list of new associated fstate
-function M.determine_plan(identities, transformation_graph)
-  local plan = {}
-
-  for hash, fnames in pairs(transformation_graph) do
-    if #fnames == 0 then
-      table.insert(plan, {
-        type = "delete",
-        fname = identities[hash].fname,
-      })
-
-    elseif #fnames > 0 then
-      local current_fname = identities[hash].fname
-      -- Try to find the current fname in the list of new_fnames. If it's
-      -- there, then we can do nothing. If it's not there, then we copy the
-      -- file n - 1 times and then move for the last file.
-      local one_unchanged = false
-      for _, new_fname in pairs(fnames) do
-        if current_fname == new_fname then
-          one_unchanged = true
-          break
-        end
-      end
-
-      if one_unchanged then
-        for _, new_fname in pairs(fnames) do
-          if current_fname ~= new_fname then
-            table.insert(plan, {
-              type = "copy",
-              old_fname = current_fname,
-              new_fname = new_fname,
-            })
-          end
-        end
-
-      else
-        -- TODO: This is gross as fuck
-        local cursor, move_to = next(fnames)
-        while true do
-          local new_fname
-          cursor, new_fname = next(fnames, cursor)
-          if cursor == nil then
-            break
-          end
-          table.insert(plan, {
-            type = "copy",
-            old_fname = current_fname,
-            new_fname = new_fname,
-          })
-        end
-        table.insert(plan, {
-          type = "move",
-          old_fname = current_fname,
-          new_fname = move_to,
-        })
-      end
-
-    else
-      log.error("not yet supported")
-      return nil
-    end
-  end
-
-  return plan
-end
-
-local function execute_plan(plan)
-  -- Apply those actions
-  -- TODO: Make this async
-  -- TODO: Check that all actions are valid before taking any action?
-  -- determine_plan should only generate valid plans
-  for _, action in pairs(plan) do
-    if action.type == "copy" then
-      local ok = uv.fs_copyfile(action.old_fname, action.new_fname, nil)
-      assert(ok)
-
-    elseif action.type == "delete" then
-      local ok = uv.fs_unlink(action.fname)
-      assert(ok)
-
-    elseif action.type == "move" then
-      -- TODO: This is a TOCTOU
-      if uv.fs_access(action.new_fname, "W") then
-        log.error("file at '%s' already exists", action.new_fname)
-        return
-      end
-      local ok = uv.fs_rename(action.old_fname, action.new_fname)
-      assert(ok)
-
-    else
-      log.error("unknown action")
-      return false
-    end
-  end
-  return true
-end
-
 -- TODO: Figure out rules for how competing deletes, renames, and copies work.
 -- Maybe need a temp directory to make them "atomic"?
 function M.sync()
@@ -283,14 +186,8 @@ function M.sync()
     used_fnames[fname] = true
   end
 
-  local plan = M.determine_plan(current_state, desired_state)
-  if plan == nil then
-    return
-  end
-  local ok = execute_plan(plan)
-  if not ok then
-    return
-  end
+  local plan = planner.determine_plan(current_state, desired_state)
+  planner.execute_plan(plan)
 
   -- TODO: Reload the buffer
   api.nvim_buf_set_option(0, "modified", false)
