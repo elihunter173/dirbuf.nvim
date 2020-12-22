@@ -149,40 +149,29 @@ function M.enter()
   M.open(fname)
 end
 
--- TODO: Move planning to a different file
-local ACTION = {
-  -- old_fname, new_fname
-  COPY = 1,
-  -- fname
-  DELETE = 2,
-  -- old_fname, new_fname
-  MOVE = 3,
-}
-M.ACTION = ACTION
-
 -- Given the current state of the directory, `old_state`, and the desired new
 -- state of the directory, `new_state`, determine the most efficient series of
 -- actions necessary to reach the desired state.
 --
 -- old_state: Map from file hash to current state of file
 -- new_state: Map from file hash to list of new associated fstate
-function M.determine_plan(current_state, desired_state)
+function M.determine_plan(identities, transformation_graph)
   local plan = {}
 
-  for hash, fstates in pairs(desired_state) do
-    if #fstates == 0 then
+  for hash, fnames in pairs(transformation_graph) do
+    if #fnames == 0 then
       table.insert(plan, {
-        type = ACTION.DELETE,
-        fname = current_state[hash].fname,
+        type = "delete",
+        fname = identities[hash].fname,
       })
 
-    elseif #fstates > 0 then
-      local current_fname = current_state[hash].fname
+    elseif #fnames > 0 then
+      local current_fname = identities[hash].fname
       -- Try to find the current fname in the list of new_fnames. If it's
       -- there, then we can do nothing. If it's not there, then we copy the
       -- file n - 1 times and then move for the last file.
       local one_unchanged = false
-      for _, new_fname in pairs(fstates) do
+      for _, new_fname in pairs(fnames) do
         if current_fname == new_fname then
           one_unchanged = true
           break
@@ -190,10 +179,10 @@ function M.determine_plan(current_state, desired_state)
       end
 
       if one_unchanged then
-        for _, new_fname in pairs(fstates) do
+        for _, new_fname in pairs(fnames) do
           if current_fname ~= new_fname then
             table.insert(plan, {
-              type = ACTION.COPY,
+              type = "copy",
               old_fname = current_fname,
               new_fname = new_fname,
             })
@@ -202,21 +191,21 @@ function M.determine_plan(current_state, desired_state)
 
       else
         -- TODO: This is gross as fuck
-        local cursor, move_to = next(fstates)
+        local cursor, move_to = next(fnames)
         while true do
           local new_fname
-          cursor, new_fname = next(fstates, cursor)
+          cursor, new_fname = next(fnames, cursor)
           if cursor == nil then
             break
           end
           table.insert(plan, {
-            type = ACTION.COPY,
+            type = "copy",
             old_fname = current_fname,
             new_fname = new_fname,
           })
         end
         table.insert(plan, {
-          type = ACTION.MOVE,
+          type = "move",
           old_fname = current_fname,
           new_fname = move_to,
         })
@@ -237,15 +226,15 @@ local function execute_plan(plan)
   -- TODO: Check that all actions are valid before taking any action?
   -- determine_plan should only generate valid plans
   for _, action in pairs(plan) do
-    if action.type == ACTION.COPY then
+    if action.type == "copy" then
       local ok = uv.fs_copyfile(action.old_fname, action.new_fname, nil)
       assert(ok)
 
-    elseif action.type == ACTION.DELETE then
+    elseif action.type == "delete" then
       local ok = uv.fs_unlink(action.fname)
       assert(ok)
 
-    elseif action.type == ACTION.MOVE then
+    elseif action.type == "move" then
       -- TODO: This is a TOCTOU
       if uv.fs_access(action.new_fname, "W") then
         log.error("file at '%s' already exists", action.new_fname)

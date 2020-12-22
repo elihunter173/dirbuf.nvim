@@ -28,128 +28,128 @@ describe("dirbuf", function()
 
   describe("determine_plan", function()
     it("no changes", function()
-      local cur_state = {
+      local identities = {
         ["a"] = { fname = "a", ftype = "file" },
         ["b"] = { fname = "b", ftype = "file" },
       }
-      local desired_state = {
+      local changes = {
         ["a"] = {"a"},
         ["b"] = {"b"},
       }
-      assert.same({}, dirbuf.determine_plan(cur_state, desired_state))
+      assert.same({}, dirbuf.determine_plan(identities, changes))
     end)
 
     it("rename one", function()
-      local cur_state = {
+      local identities = {
         ["a"] = { fname = "a", ftype = "file" },
         ["b"] = { fname = "b", ftype = "file" },
       }
-      local desired_state = {
+      local changes = {
         ["a"] = {"c"},
         ["b"] = {"b"},
       }
       local correct_plan = {
         {
-          type = dirbuf.ACTION.MOVE,
+          type = "move",
           old_fname = "a",
           new_fname = "c",
         },
       }
-      assert.same(correct_plan, dirbuf.determine_plan(cur_state, desired_state))
+      assert.same(correct_plan, dirbuf.determine_plan(identities, changes))
     end)
 
     it("delete one", function()
-      local cur_state = {
+      local identities = {
         ["a"] = { fname = "a", ftype = "file" },
         ["b"] = { fname = "b", ftype = "file" },
       }
-      local desired_state = {
+      local changes = {
         ["a"] = {},
         ["b"] = {"b"},
       }
       local correct_plan = {
-        { type = dirbuf.ACTION.DELETE, fname = "a" },
+        { type = "delete", fname = "a" },
       }
-      assert.same(correct_plan, dirbuf.determine_plan(cur_state, desired_state))
+      assert.same(correct_plan, dirbuf.determine_plan(identities, changes))
     end)
 
     it("copy one", function()
-      local cur_state = {
+      local identities = {
         ["a"] = { fname = "a", ftype = "file" },
         ["b"] = { fname = "b", ftype = "file" },
       }
-      local desired_state = {
+      local changes = {
         ["a"] = {"a", "c"},
         ["b"] = {"b"},
       }
       local correct_plan = {
         {
-          type = dirbuf.ACTION.COPY,
+          type = "copy",
           old_fname = "a",
           new_fname = "c",
         },
       }
-      assert.same(correct_plan, dirbuf.determine_plan(cur_state, desired_state))
+      assert.same(correct_plan, dirbuf.determine_plan(identities, changes))
     end)
 
     it("dependent renames", function()
-      local cur_state = {
+      local identities = {
         ["a"] = { fname = "a", ftype = "file" },
         ["b"] = { fname = "b", ftype = "file" },
       }
-      local desired_state = {
+      local changes = {
         ["a"] = {"b"},
         ["b"] = {"c"},
       }
       local correct_plan = {
         {
-          type = dirbuf.ACTION.MOVE,
+          type = "move",
           old_fname = "b",
           new_fname = "c",
         },
         {
-          type = dirbuf.ACTION.MOVE,
+          type = "move",
           old_fname = "a",
           new_fname = "b",
         },
       }
-      assert.same(correct_plan, dirbuf.determine_plan(cur_state, desired_state))
+      assert.same(correct_plan, dirbuf.determine_plan(identities, changes))
     end)
 
     it("difficult example", function()
-      local cur_state = {
+      local identities = {
         ["a"] = { fname = "a", ftype = "file" },
         ["b"] = { fname = "b", ftype = "file" },
         ["c"] = { fname = "c", ftype = "file" },
       }
-      local desired_state = {
+      local changes = {
         ["a"] = {"b", "d"},
         ["b"] = {"c"},
         ["c"] = {"a"},
       }
       local correct_plan = {
         {
-          type = dirbuf.ACTION.MOVE,
+          type = "move",
           old_fname = "a",
           new_fname = "d",
         },
         {
-          type = dirbuf.ACTION.MOVE,
+          type = "move",
           old_fname = "c",
           new_fname = "a",
         },
         {
-          type = dirbuf.ACTION.MOVE,
+          type = "move",
           old_fname = "b",
           new_fname = "c",
         },
         {
-          type = dirbuf.ACTION.COPY,
+          type = "copy",
           old_fname = "d",
           new_fname = "c",
         },
       }
-      assert.same(correct_plan, dirbuf.determine_plan(cur_state, desired_state))
+      assert.same(correct_plan, dirbuf.determine_plan(identities, changes))
     end)
 
   end)
