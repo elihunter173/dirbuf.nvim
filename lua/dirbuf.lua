@@ -7,6 +7,8 @@ local planner = require("dirbuf.planner")
 
 local M = {}
 
+local CURRENT_BUFFER = 0
+
 -- TODO: Switch error handling to use error and pcall?
 local log = {
   error = function(...)
@@ -60,7 +62,6 @@ local function fill_dirbuf(buf)
     error(err)
   end
   -- Fill out buffer
-  -- TODO: Maybe add a ../ at the top? Not sold in the idea
   -- Stores file info by hash
   local file_info = {}
   -- Stores (fname_esc, padding, hash) tuples which we will join into strings
@@ -142,7 +143,7 @@ function M.open(dir)
 end
 
 function M.enter()
-  if api.nvim_buf_get_option(0, "modified") then
+  if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
     log.error("dirbuf must be saved first")
     return
   end
@@ -162,9 +163,9 @@ function M.sync()
   local current_state = vim.b.dirbuf
 
   -- Map from hash to fnames associated with that hash
-  local desired_state = {}
+  local transition_graph = {}
   for hash, _ in pairs(current_state) do
-    desired_state[hash] = {}
+    transition_graph[hash] = {}
   end
 
   -- Just to ensure we don't reuse fnames
@@ -181,15 +182,14 @@ function M.sync()
       return
     end
 
-    -- TODO: Get ftype from file ending and make this a map of fstates
-    table.insert(desired_state[hash], fname)
+    table.insert(transition_graph[hash], fname)
     used_fnames[fname] = true
   end
 
-  local plan = planner.determine_plan(current_state, desired_state)
+  local plan = planner.determine_plan(current_state, transition_graph)
   planner.execute_plan(plan)
 
-  fill_dirbuf(0)
+  fill_dirbuf(CURRENT_BUFFER)
 end
 
 return M
