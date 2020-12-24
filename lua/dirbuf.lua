@@ -75,6 +75,13 @@ local function fill_dirbuf(buf)
     if fname == nil then
       break
     end
+
+    -- Skip hidden files
+    -- TODO: Make skipping hidden files more easily configurable
+    if not vim.g.dirbuf_show_hidden and fname:match("^%.") then
+      goto continue
+    end
+
     -- TODO: Should I actually modify the fname like this?
     -- TODO: Do all classifiers from here
     -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
@@ -95,6 +102,8 @@ local function fill_dirbuf(buf)
     if #fname_esc > max_len then
       max_len = #fname_esc
     end
+
+    ::continue::
   end
   -- Now fill in the padding in the (fname_esc, padding, hash) tuples with
   -- appropriate padding such that the hashes line up
