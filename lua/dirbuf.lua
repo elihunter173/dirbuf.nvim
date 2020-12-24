@@ -7,16 +7,14 @@ local planner = require("dirbuf.planner")
 
 local M = {}
 
--- TODO: Make visibility make sense for testing
-
 -- TODO: Switch error handling to use error and pcall?
 local log = {
   error = function(...)
-    api.nvim_err_writeln("[dirbuf] " .. string.format(...))
+    api.nvim_err_writeln("Dirbuf: " .. string.format(...))
   end,
   warn = function(...)
     vim.cmd("echohl WarningMsg")
-    vim.cmd("echom '[dirbuf] " .. vim.fn.escape(string.format(...), "'") .. "'")
+    vim.cmd("echom 'Dirbuf: " .. vim.fn.escape(string.format(...), "'") .. "'")
     vim.cmd("echohl None")
   end,
   debug = function(...)
@@ -54,23 +52,13 @@ function M.parse_line(line)
   return fname, hash
 end
 
--- TODO: I need to determine how to save the previous cdpath and restore it when the dirbuf is exited
--- TODO: Conditionally split based on whether bang is there or not. Or do I even want this?
-function M.open(dir)
-  if dir == "" then
-    dir = "."
-  end
+local function fill_dirbuf(buf)
+  local dir = api.nvim_buf_get_name(buf):match("dirbuf://(.*)")
 
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
-    log.error(err)
-    return
+    error(err)
   end
-
-  -- Don't create buf until we know the directory exists
-  local buf = api.nvim_create_buf(true, false)
-  assert(buf ~= 0)
-
   -- Fill out buffer
   -- TODO: Maybe add a ../ at the top? Not sold in the idea
   -- Stores file info by hash
@@ -87,7 +75,8 @@ function M.open(dir)
       break
     end
     -- TODO: Should I actually modify the fname like this?
-    -- TODO: Do all classifiers from here https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
+    -- TODO: Do all classifiers from here
+    -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
     if ftype == "directory" then
       fname = fname .. "/"
     elseif ftype == "link" then
@@ -113,32 +102,40 @@ function M.open(dir)
     buf_lines[key] = table.concat(tuple)
   end
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
+  api.nvim_buf_set_var(buf, "dirbuf", file_info)
 
-  -- Add keymaps
-  -- TODO: Should this be an ftplugin? Probably...
-  api.nvim_buf_set_keymap(buf, "n", "<CR>", "<cmd>lua require('dirbuf').enter()<cr>", {noremap = true, silent = true})
-  api.nvim_buf_set_keymap(buf, "n", "gd",   "<cmd>DirbufPrintln<cr>", {noremap = true, silent = true})
+  -- Us filling the buffer counts as modifying it
+  api.nvim_buf_set_option(buf, "modified", false)
+end
+
+-- TODO: I need to determine how to save the previous cdpath and restore it
+-- when the dirbuf is exited
+-- TODO: Conditionally split based on whether bang is there or not. Or do I
+-- even want this?
+function M.open(dir)
+  if dir == "" then
+    dir = "."
+  end
+
+  -- Don't create buf until we know the directory exists
+  local buf = api.nvim_create_buf(true, false)
+  assert(buf ~= 0)
+
+  api.nvim_buf_set_name(buf, "dirbuf://" .. vim.fn.fnamemodify(dir, ":p"))
+
+  fill_dirbuf(buf)
 
   -- TODO: Figure out how to set the cursor line. Should I even? I'd like it so
   -- yeah
   -- api.nvim_win_set_option(0, "cursorline", true)
 
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
-  -- Us filling the buffer counts as modifying it
-  api.nvim_buf_set_option(buf, "modified", false)
-
-  api.nvim_buf_set_name(buf, "dirbuf://" .. vim.fn.fnamemodify(dir, ":p"))
 
   -- This needs to be after we iterate over the dirs
   vim.cmd("silent cd " .. dir)
 
   -- Buffer is finished. Show it
   api.nvim_win_set_buf(0, buf)
-
-  -- Has to be after we focus the buffer
-  vim.b.dirbuf = {
-    file_info = file_info,
-  }
 end
 
 function M.enter()
@@ -150,7 +147,7 @@ function M.enter()
   -- TODO: Is there a better way to do this?
   local line = vim.fn.getline(".")
   local fname, hash = M.parse_line(line)
-  assert(vim.b.dirbuf.file_info[hash].ftype == "directory")
+  assert(vim.b.dirbuf[hash].ftype == "directory")
   M.open(fname)
 end
 
@@ -159,7 +156,7 @@ end
 function M.sync()
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
-  local current_state = vim.b.dirbuf.file_info
+  local current_state = vim.b.dirbuf
 
   -- Map from hash to fnames associated with that hash
   local desired_state = {}
@@ -189,8 +186,7 @@ function M.sync()
   local plan = planner.determine_plan(current_state, desired_state)
   planner.execute_plan(plan)
 
-  -- TODO: Reload the buffer
-  api.nvim_buf_set_option(0, "modified", false)
+  fill_dirbuf(0)
 end
 
 return M
