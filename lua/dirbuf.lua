@@ -148,11 +148,19 @@ function M.enter()
     return
   end
 
-  -- TODO: Is there a better way to do this?
+  -- TODO: Is there a better way to get the current line?
   local line = vim.fn.getline(".")
   local fname, hash = M.parse_line(line)
-  assert(vim.b.dirbuf[hash].ftype == "directory")
-  M.open(fname)
+  local fstate = vim.b.dirbuf[hash]
+  assert(fstate.fname == fname)
+  if fstate.ftype == "directory" then
+    M.open(fname)
+  elseif fstate.ftype == "file" then
+    -- TODO: I don't think this properly works because of the cdpath issue
+    vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
+  else
+    error("currently unsupported filetype")
+  end
 end
 
 -- TODO: Figure out rules for how competing deletes, renames, and copies work.
