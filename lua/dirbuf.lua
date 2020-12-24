@@ -116,6 +116,9 @@ function M.open(dir)
   if dir == "" then
     dir = "."
   end
+  -- XXX: Fixes issues with .. appearing in filepath if you do
+  -- dirbuf.open("..")
+  dir = dir .. "/"
 
   -- Don't create buf until we know the directory exists
   local buf = api.nvim_create_buf(true, false)
