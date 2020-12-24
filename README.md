@@ -1,7 +1,7 @@
 # WIP Note
 
-This plugin is currently a work in progress. It isn't feature complete, errors
-regularly, and occasionally has regressions as I refactor and change things.
+This plugin is a work in progress. It isn't feature complete and has bugs.
+However, it is workable enough that I've started dogfooding it.
 
 Here is a quick list of features implemented.
 

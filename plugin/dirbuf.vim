@@ -10,4 +10,6 @@ if mapcheck('-', 'n') ==# '' && !hasmapto('<Plug>(dirbuf_up)', 'n')
   nmap - <Plug>(dirbuf_up)
 endif
 
+" TODO: Automatically open directories with dirbuf
+
 let g:loaded_dirbuf = 1

@@ -118,10 +118,8 @@ local function fill_dirbuf(buf)
   api.nvim_buf_set_option(buf, "modified", false)
 end
 
--- TODO: I need to determine how to save the previous cwd and restore it when
--- the dirbuf is exited
 -- TODO: Conditionally split based on whether bang is there or not. Or do I
--- even want this?
+-- even want this? See what dirvish.vim does
 function M.open(dir)
   if dir == "" then
     dir = "."
@@ -130,7 +128,8 @@ function M.open(dir)
   -- dirbuf.open("..")
   dir = vim.fn.fnamemodify(dir .. "/", ":p")
 
-  -- Don't create buf until we know the directory exists
+  -- TODO: Try to find the old buffer before we create a new one
+
   local buf = api.nvim_create_buf(true, false)
   assert(buf ~= 0)
 
@@ -138,7 +137,7 @@ function M.open(dir)
 
   fill_dirbuf(buf)
 
-  -- TODO: Figure out how to set the cursor line. Should I even? I'd like it so
+  -- TODO: Figure out how to set the cursor line. Should I even? I like it so
   -- yeah
   -- api.nvim_win_set_option(0, "cursorline", true)
 
