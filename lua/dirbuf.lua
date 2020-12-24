@@ -93,12 +93,9 @@ local function fill_dirbuf(buf)
 
     local hash = hash_fname(fname)
     assert(file_info[hash] == nil)
-    file_info[hash] = {
-      fname = fname,
-      ftype = ftype,
-    }
+    file_info[hash] = {fname = fname, ftype = ftype}
     local fname_esc = vim.fn.fnameescape(fname)
-    table.insert(buf_lines, {fname_esc, nil, "  #"..hash})
+    table.insert(buf_lines, {fname_esc, nil, "  #" .. hash})
     if #fname_esc > max_len then
       max_len = #fname_esc
     end
@@ -155,7 +152,8 @@ function M.open(dir)
 
   vim.cmd("augroup dirbuf_local")
   vim.cmd("  autocmd! * <buffer>")
-  vim.cmd("  autocmd BufLeave <buffer> silent cd " .. vim.fn.fnameescape(old_dir))
+  vim.cmd("  autocmd BufLeave <buffer> silent cd " ..
+              vim.fn.fnameescape(old_dir))
   vim.cmd("  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()")
   vim.cmd("augroup END")
 end

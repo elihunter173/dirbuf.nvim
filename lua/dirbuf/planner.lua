@@ -14,10 +14,7 @@ function M.determine_plan(identities, transformation_graph)
   for hash, fnames in pairs(transformation_graph) do
     if next(fnames) == nil then
       -- Graph goes nowhere
-      table.insert(plan, {
-        type = "delete",
-        fname = identities[hash].fname,
-      })
+      table.insert(plan, {type = "delete", fname = identities[hash].fname})
 
     else
       local current_fname = identities[hash].fname
