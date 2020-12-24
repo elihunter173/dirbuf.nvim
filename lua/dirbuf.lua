@@ -109,8 +109,8 @@ local function fill_dirbuf(buf)
   api.nvim_buf_set_option(buf, "modified", false)
 end
 
--- TODO: I need to determine how to save the previous cdpath and restore it
--- when the dirbuf is exited
+-- TODO: I need to determine how to save the previous cwd and restore it when
+-- the dirbuf is exited
 -- TODO: Conditionally split based on whether bang is there or not. Or do I
 -- even want this?
 function M.open(dir)
@@ -156,7 +156,7 @@ function M.enter()
   if fstate.ftype == "directory" then
     M.open(fname)
   elseif fstate.ftype == "file" then
-    -- TODO: I don't think this properly works because of the cdpath issue
+    -- TODO: I don't think this properly works because of the cwd issue
     vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
   else
     error("currently unsupported filetype")
