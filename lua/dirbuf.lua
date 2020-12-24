@@ -55,7 +55,7 @@ function M.parse_line(line)
 end
 
 local function fill_dirbuf(buf)
-  local dir = api.nvim_buf_get_name(buf):match("dirbuf://(.*)")
+  local dir = api.nvim_buf_get_name(buf)
 
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
@@ -117,15 +117,15 @@ function M.open(dir)
   if dir == "" then
     dir = "."
   end
-  -- XXX: Fixes issues with .. appearing in filepath if you do
+  -- .. "/" fixes issues with .. appearing in filepath if you do
   -- dirbuf.open("..")
-  dir = dir .. "/"
+  dir = vim.fn.fnamemodify(dir .. "/", ":p")
 
   -- Don't create buf until we know the directory exists
   local buf = api.nvim_create_buf(true, false)
   assert(buf ~= 0)
 
-  api.nvim_buf_set_name(buf, "dirbuf://" .. vim.fn.fnamemodify(dir, ":p"))
+  api.nvim_buf_set_name(buf, dir)
 
   fill_dirbuf(buf)
 
@@ -134,12 +134,22 @@ function M.open(dir)
   -- api.nvim_win_set_option(0, "cursorline", true)
 
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
+  api.nvim_buf_set_option(buf, "buftype", "acwrite")
 
-  -- This needs to be after we iterate over the dirs
-  vim.cmd("silent cd " .. dir)
+  -- We must first change buffers before we change the save the old directory
+  -- and switch directories. That is because we use BufLeave to reset the
+  -- current directory and we don't want to change the saved current directory
+  -- when we go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf)
+  -- because that doesn't trigger autocmds.
+  vim.cmd("buffer " .. buf)
+  local old_dir = vim.fn.getcwd()
+  api.nvim_set_current_dir(dir)
 
-  -- Buffer is finished. Show it
-  api.nvim_win_set_buf(0, buf)
+  vim.cmd("augroup dirbuf_local")
+  vim.cmd("  autocmd! * <buffer>")
+  vim.cmd("  autocmd BufLeave <buffer> silent cd " .. vim.fn.fnameescape(old_dir))
+  vim.cmd("  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()")
+  vim.cmd("augroup END")
 end
 
 function M.enter()
