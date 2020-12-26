@@ -24,6 +24,45 @@ local log = {
   end,
 }
 
+local function dbg(...)
+  local local_names = {...}
+  local name_idx = {}
+  for idx, name in ipairs(local_names) do
+    name_idx[name] = idx
+  end
+
+  local info = debug.getinfo(2)
+  local prefix = string.format("%s:%d:", info.source:match("^.*/(.+)$"),
+                               info.currentline)
+
+  if #local_names > 1 then
+    print(prefix)
+    prefix = "  "
+  end
+
+  local lines = {}
+  local index = 1
+  while true do
+    local var_name, var_value = debug.getlocal(2, index)
+    if not var_name then
+      break
+    end
+    if name_idx[var_name] ~= nil then
+      lines[name_idx[var_name]] = vim.inspect(var_value)
+    end
+    index = index + 1
+  end
+
+  for idx, name in ipairs(local_names) do
+    local valstr = lines[idx]
+    if valstr == nil then
+      print(prefix, "no such local `" .. name .. "`")
+    else
+      print(prefix, name, "=", valstr)
+    end
+  end
+end
+
 local HASH_LEN = 7
 local function hash_fname(fname)
   return md5.sumhexa(fname):sub(1, HASH_LEN)
