@@ -179,15 +179,12 @@ function M.enter()
   if fstate.ftype == "directory" then
     M.open(fname)
   elseif fstate.ftype == "file" then
-    -- TODO: I don't think this properly works because of the cwd issue
     vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
   else
     error("currently unsupported filetype")
   end
 end
 
--- TODO: Figure out rules for how competing deletes, renames, and copies work.
--- Maybe need a temp directory to make them "atomic"?
 function M.sync()
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
