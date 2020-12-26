@@ -154,6 +154,8 @@ function M.open(dir)
   vim.cmd("  autocmd! * <buffer>")
   vim.cmd("  autocmd BufLeave <buffer> silent cd " ..
               vim.fn.fnameescape(old_dir))
+  vim.cmd("  autocmd BufEnter <buffer> silent cd " ..
+              vim.fn.fnameescape(dir))
   vim.cmd("  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()")
   vim.cmd("augroup END")
 end
