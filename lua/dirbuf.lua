@@ -125,7 +125,11 @@ function M.open(dir)
   -- dirbuf.open("..")
   dir = vim.fn.fnamemodify(dir .. "/", ":p")
 
-  -- TODO: Try to find the old buffer before we create a new one
+  local old_buf = vim.fn.bufnr(dir)
+  if old_buf ~= -1 then
+    vim.cmd("buffer " .. old_buf)
+    return
+  end
 
   local buf = api.nvim_create_buf(true, false)
   assert(buf ~= 0)
@@ -140,6 +144,7 @@ function M.open(dir)
 
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
+  api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
   -- We must first change buffers before we change the save the old directory
   -- and switch directories. That is because we use BufLeave to reset the
@@ -147,7 +152,7 @@ function M.open(dir)
   -- when we go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf)
   -- because that doesn't trigger autocmds.
   vim.cmd("buffer " .. buf)
-  local old_dir = vim.fn.getcwd()
+  local old_dir = uv.cwd()
   api.nvim_set_current_dir(dir)
 
   vim.cmd("augroup dirbuf_local")
