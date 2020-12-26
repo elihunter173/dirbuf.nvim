@@ -9,7 +9,7 @@ local M = {}
 
 local CURRENT_BUFFER = 0
 
--- TODO: Switch error handling to use error and pcall?
+-- TODO: Switch error handling to use error and pcall
 local log = {
   error = function(...)
     api.nvim_err_writeln("Dirbuf: " .. string.format(...))
@@ -154,8 +154,6 @@ local function fill_dirbuf(buf)
   api.nvim_buf_set_option(buf, "modified", false)
 end
 
--- TODO: Conditionally split based on whether bang is there or not. Or do I
--- even want this? See what dirvish.vim does
 function M.open(dir)
   if dir == "" then
     dir = "."
@@ -178,10 +176,6 @@ function M.open(dir)
   api.nvim_buf_set_name(buf, dir)
 
   fill_dirbuf(buf)
-
-  -- TODO: Figure out how to set the cursor line. Should I even? I like it so
-  -- yeah
-  -- api.nvim_win_set_option(0, "cursorline", true)
 
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
@@ -211,8 +205,7 @@ function M.enter()
     return
   end
 
-  -- TODO: Is there a better way to get the current line?
-  local line = vim.fn.getline(".")
+  local line = api.nvim_get_current_line()
   local fname, hash = M.parse_line(line)
   local fstate = vim.b.dirbuf[hash]
   assert(fstate.fname == fname)
