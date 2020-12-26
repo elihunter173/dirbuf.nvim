@@ -160,9 +160,11 @@ function M.open(dir)
   if dir == "" then
     dir = "."
   end
-  -- .. "/" fixes issues with .. appearing in filepath if you do
-  -- dirbuf.open("..")
-  dir = vim.fn.fnamemodify(dir .. "/", ":p")
+  -- XXX: `dir .. "/"` fixes issues with .. appearing in filepath if you do
+  -- dirbuf.open(".."), but it makes '/' become '//'
+  if dir ~= "/" then
+    dir = vim.fn.fnamemodify(dir .. "/", ":p")
+  end
 
   local old_buf = vim.fn.bufnr("^" .. dir .. "$")
   if old_buf ~= -1 then
