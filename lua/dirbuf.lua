@@ -164,7 +164,7 @@ function M.open(dir)
   -- dirbuf.open("..")
   dir = vim.fn.fnamemodify(dir .. "/", ":p")
 
-  local old_buf = vim.fn.bufnr(dir)
+  local old_buf = vim.fn.bufnr("^" .. dir .. "$")
   if old_buf ~= -1 then
     vim.cmd("buffer " .. old_buf)
     return
@@ -198,8 +198,7 @@ function M.open(dir)
   vim.cmd("  autocmd! * <buffer>")
   vim.cmd("  autocmd BufLeave <buffer> silent cd " ..
               vim.fn.fnameescape(old_dir))
-  vim.cmd("  autocmd BufEnter <buffer> silent cd " ..
-              vim.fn.fnameescape(dir))
+  vim.cmd("  autocmd BufEnter <buffer> silent cd " .. vim.fn.fnameescape(dir))
   vim.cmd("  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()")
   vim.cmd("augroup END")
 end
