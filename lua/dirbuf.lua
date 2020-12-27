@@ -149,7 +149,7 @@ local function clean_path(path)
   end
 end
 
--- TODO: Merge with M.open
+-- This buffer must be the currently focused buffer
 function M.init_dirbuf(buf)
   local dir = clean_path(api.nvim_buf_get_name(buf))
   api.nvim_buf_set_name(buf, dir)
@@ -160,7 +160,6 @@ function M.init_dirbuf(buf)
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
-  -- TODO: Should I switch buffers?
   local old_dir = uv.cwd()
   api.nvim_set_current_dir(dir)
 
@@ -182,38 +181,23 @@ function M.open(dir)
   local old_buf = vim.fn.bufnr("^" .. dir .. "$")
   if old_buf ~= -1 then
     vim.cmd("buffer " .. old_buf)
-    return
+
+  else
+    local buf = api.nvim_create_buf(true, false)
+    if buf == 0 then
+      error("failed to create buffer")
+    end
+    api.nvim_buf_set_name(buf, dir)
+
+    -- We must first change buffers before we change the save the old directory
+    -- and switch directories. That is because we use BufLeave to reset the
+    -- current directory and we don't want to change the saved current directory
+    -- when we go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf)
+    -- because that doesn't trigger autocmds.
+    vim.cmd("buffer " .. buf)
+
+    M.init_dirbuf(buf)
   end
-
-  local buf = api.nvim_create_buf(true, false)
-  if buf == 0 then
-    error("failed to create buffer")
-  end
-
-  api.nvim_buf_set_name(buf, dir)
-
-  fill_dirbuf(buf)
-
-  api.nvim_buf_set_option(buf, "filetype", "dirbuf")
-  api.nvim_buf_set_option(buf, "buftype", "acwrite")
-  api.nvim_buf_set_option(buf, "bufhidden", "hide")
-
-  -- We must first change buffers before we change the save the old directory
-  -- and switch directories. That is because we use BufLeave to reset the
-  -- current directory and we don't want to change the saved current directory
-  -- when we go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf)
-  -- because that doesn't trigger autocmds.
-  vim.cmd("buffer " .. buf)
-  local old_dir = uv.cwd()
-  api.nvim_set_current_dir(dir)
-
-  vim.cmd("augroup dirbuf_local")
-  vim.cmd("  autocmd! * <buffer>")
-  vim.cmd("  autocmd BufLeave <buffer> silent cd " ..
-              vim.fn.fnameescape(old_dir))
-  vim.cmd("  autocmd BufEnter <buffer> silent cd " .. vim.fn.fnameescape(dir))
-  vim.cmd("  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()")
-  vim.cmd("augroup END")
 end
 
 function M.enter()
