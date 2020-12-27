@@ -11,6 +11,12 @@ if mapcheck('-', 'n') ==# '' && !hasmapto('<Plug>(dirbuf_up)', 'n')
   nmap - <Plug>(dirbuf_up)
 endif
 
-" TODO: Automatically open directories with dirbuf
+augroup dirbuf
+  autocmd!
+  " Makes editing a directory open a dirbuf
+  autocmd BufEnter * if !exists('b:dirbuf') && isdirectory(expand('<afile>'))
+        \ | execute 'lua require"dirbuf".init_dirbuf(vim.fn.expand("<abuf>"))'
+        \ | endif
+augroup END
 
 let g:loaded_dirbuf = 1

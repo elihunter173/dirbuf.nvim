@@ -154,15 +154,45 @@ local function fill_dirbuf(buf)
   api.nvim_buf_set_option(buf, "modified", false)
 end
 
+local function clean_path(path)
+  -- XXX: `dir .. "/"` fixes issues with .. appearing in filepath if you do
+  -- dirbuf.open(".."), but it makes '/' become '//'
+  if path ~= "/" then
+    return vim.fn.fnamemodify(path .. "/", ":p")
+  else
+    return path
+  end
+end
+
+-- TODO: Merge with M.open
+function M.init_dirbuf(buf)
+  local dir = clean_path(api.nvim_buf_get_name(buf))
+  api.nvim_buf_set_name(buf, dir)
+
+  fill_dirbuf(buf)
+
+  api.nvim_buf_set_option(buf, "filetype", "dirbuf")
+  api.nvim_buf_set_option(buf, "buftype", "acwrite")
+  api.nvim_buf_set_option(buf, "bufhidden", "hide")
+
+  -- TODO: Should I switch buffers?
+  local old_dir = uv.cwd()
+  api.nvim_set_current_dir(dir)
+
+  vim.cmd("augroup dirbuf_local")
+  vim.cmd("  autocmd! * <buffer>")
+  vim.cmd("  autocmd BufLeave <buffer> silent cd " ..
+              vim.fn.fnameescape(old_dir))
+  vim.cmd("  autocmd BufEnter <buffer> silent cd " .. vim.fn.fnameescape(dir))
+  vim.cmd("  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()")
+  vim.cmd("augroup END")
+end
+
 function M.open(dir)
   if dir == "" then
     dir = "."
   end
-  -- XXX: `dir .. "/"` fixes issues with .. appearing in filepath if you do
-  -- dirbuf.open(".."), but it makes '/' become '//'
-  if dir ~= "/" then
-    dir = vim.fn.fnamemodify(dir .. "/", ":p")
-  end
+  dir = clean_path(dir)
 
   local old_buf = vim.fn.bufnr("^" .. dir .. "$")
   if old_buf ~= -1 then
