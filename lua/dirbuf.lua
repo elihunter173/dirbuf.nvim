@@ -1,8 +1,7 @@
 local api = vim.api
 local uv = vim.loop
 
-local md5 = require("vendor.md5")
-
+local md5 = require("dirbuf.md5")
 local planner = require("dirbuf.planner")
 
 local M = {}
