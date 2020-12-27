@@ -12,14 +12,23 @@ local HASH_LEN = 7
 local function hash_fname(fname)
   return md5.sumhexa(fname):sub(1, HASH_LEN)
 end
+
+-- The language of valid dirbuf lines is regular, so normally I would use a
+-- regular expression. However, Lua doesn't have a proper regex engine, just
+-- simpler patterns. These patterns can't parse dirbuf lines (b/c of escaping),
+-- so I manually build the parser. It also gives nicer error messages.
 function M.parse_line(line)
   local string_builder = {}
   -- We store this in a local so we can skip characters
   local chars = line:gmatch(".")
-  for c in chars do
-    if c == " " then
-      break
 
+  -- Parse fname
+  while true do
+    local c = chars()
+    if c == nil then
+      error("unexpected end of line")
+    elseif c == " " then
+      break
     elseif c == "\\" then
       local next_c = chars()
       if next_c == " " or next_c == "\\" then
@@ -27,14 +36,43 @@ function M.parse_line(line)
       else
         error(string.format("invalid escape sequence '\\%s'", next_c))
       end
-
     else
       table.insert(string_builder, c)
     end
   end
   local fname = table.concat(string_builder)
 
-  local hash = line:match("#(%x%x%x%x%x%x%x)$")
+  -- Skip to hash
+  while true do
+    local c = chars()
+    if c == nil then
+      error("unexpected end of line")
+    elseif c == "#" then
+      break
+    elseif not c:match("%s") then
+      error(string.format("unexpected character '%s'", c))
+    end
+  end
+
+  -- Parse hash
+  string_builder = {}
+  for _ = 1, HASH_LEN do
+    local c = chars()
+    if c == nil then
+      error("unexpected end of line")
+    elseif not c:match("%x") then
+      error(string.format("invalid hash character '%s'", c))
+    else
+      table.insert(string_builder, c)
+    end
+  end
+  local hash = table.concat(string_builder)
+
+  local c = chars()
+  if c ~= nil then
+    error(string.format("extra character '%s'", c))
+  end
+
   return fname, hash
 end
 
