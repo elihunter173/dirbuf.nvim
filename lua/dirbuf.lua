@@ -114,7 +114,9 @@ local function fill_dirbuf(buf)
     end
 
     local hash = hash_fname(fname)
-    assert(file_info[hash] == nil)
+    if file_info[hash] ~= nil then
+      error(string.format("colliding hashes '%s'", hash))
+    end
     file_info[hash] = {fname = fname, ftype = ftype}
     local fname_esc = vim.fn.fnameescape(fname)
     table.insert(buf_lines, {fname_esc, nil, "  #" .. hash})
@@ -184,7 +186,9 @@ function M.open(dir)
   end
 
   local buf = api.nvim_create_buf(true, false)
-  assert(buf ~= 0)
+  if buf == 0 then
+    error("failed to create buffer")
+  end
 
   api.nvim_buf_set_name(buf, dir)
 

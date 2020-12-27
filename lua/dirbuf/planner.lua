@@ -75,11 +75,15 @@ function M.execute_plan(plan)
   for _, action in pairs(plan) do
     if action.type == "copy" then
       local ok = uv.fs_copyfile(action.old_fname, action.new_fname, nil)
-      assert(ok)
+      if not ok then
+        error(string.format("copy failed: %s -> %s", action.old_fname, action.new_fname))
+      end
 
     elseif action.type == "delete" then
       local ok = uv.fs_unlink(action.fname)
-      assert(ok)
+      if not ok then
+        error(string.format("delete failed: %s", action.fname))
+      end
 
     elseif action.type == "move" then
       -- TODO: This is a TOCTOU
@@ -87,7 +91,9 @@ function M.execute_plan(plan)
         error(string.format("file at '%s' already exists", action.new_fname))
       end
       local ok = uv.fs_rename(action.old_fname, action.new_fname)
-      assert(ok)
+      if not ok then
+        error(string.format("move failed: %s -> %s", action.old_fname, action.new_fname))
+      end
 
     else
       error("unknown action")
