@@ -9,60 +9,6 @@ local M = {}
 
 local CURRENT_BUFFER = 0
 
--- TODO: Switch error handling to use error and pcall
-local log = {
-  error = function(...)
-    api.nvim_err_writeln("Dirbuf: " .. string.format(...))
-  end,
-  warn = function(...)
-    vim.cmd("echohl WarningMsg")
-    vim.cmd("echom 'Dirbuf: " .. vim.fn.escape(string.format(...), "'") .. "'")
-    vim.cmd("echohl None")
-  end,
-  debug = function(...)
-    print(vim.inspect(...))
-  end,
-}
-
-local function dbg(...)
-  local local_names = {...}
-  local name_idx = {}
-  for idx, name in ipairs(local_names) do
-    name_idx[name] = idx
-  end
-
-  local info = debug.getinfo(2)
-  local prefix = string.format("%s:%d:", info.source:match("^.*/(.+)$"),
-                               info.currentline)
-
-  if #local_names > 1 then
-    print(prefix)
-    prefix = "  "
-  end
-
-  local lines = {}
-  local index = 1
-  while true do
-    local var_name, var_value = debug.getlocal(2, index)
-    if not var_name then
-      break
-    end
-    if name_idx[var_name] ~= nil then
-      lines[name_idx[var_name]] = vim.inspect(var_value)
-    end
-    index = index + 1
-  end
-
-  for idx, name in ipairs(local_names) do
-    local valstr = lines[idx]
-    if valstr == nil then
-      print(prefix, "no such local `" .. name .. "`")
-    else
-      print(prefix, name, "=", valstr)
-    end
-  end
-end
-
 local HASH_LEN = 7
 local function hash_fname(fname)
   return md5.sumhexa(fname):sub(1, HASH_LEN)
@@ -231,8 +177,7 @@ end
 
 function M.enter()
   if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
-    log.error("dirbuf must be saved first")
-    return
+    error("dirbuf must be saved first")
   end
 
   local line = api.nvim_get_current_line()
@@ -264,13 +209,11 @@ function M.sync()
   for lnum, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
     local fname, hash = M.parse_line(line)
     if fname == nil then
-      log.error("malformed line: %d", lnum)
-      return
+      error(string.format("malformed line: %d", lnum))
     end
 
     if used_fnames[fname] ~= nil then
-      log.error("duplicate filename '%s'", fname)
-      return
+      error(string.format("duplicate filename '%s'", fname))
     end
 
     table.insert(transition_graph[hash], fname)
