@@ -9,6 +9,7 @@ local M = {}
 -- old_state: Map from file hash to current state of file
 -- new_state: Map from file hash to list of new associated fstate
 function M.determine_plan(identities, transformation_graph)
+  -- TODO: Keep ftype around in plan. Or maybe entire fstates
   local plan = {}
 
   for hash, fnames in pairs(transformation_graph) do
@@ -74,12 +75,14 @@ function M.execute_plan(plan)
   -- determine_plan should only generate valid plans
   for _, action in pairs(plan) do
     if action.type == "copy" then
+      -- TODO: Support copying directories
       local ok = uv.fs_copyfile(action.old_fname, action.new_fname, nil)
       if not ok then
         error(string.format("copy failed: %s -> %s", action.old_fname, action.new_fname))
       end
 
     elseif action.type == "delete" then
+      -- TODO: Support deleting directories
       local ok = uv.fs_unlink(action.fname)
       if not ok then
         error(string.format("delete failed: %s", action.fname))
