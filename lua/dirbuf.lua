@@ -275,9 +275,11 @@ function M.sync()
   end
 
   local plan = planner.determine_plan(current_state, transition_graph)
-  planner.execute_plan(plan)
 
-  -- TODO: Maybe move this to planner with proper actions?
+  -- TODO: Move this to planner with proper action. We do this before executing
+  -- the plan because I haven't figured out a good way to prevent deleting
+  -- files and then creating new ones if their IDs have been deleted or if I
+  -- even should prevent that.
   for _, fname in ipairs(new_files) do
     -- Just need to create it
     if uv.fs_access(fname, "W") then
@@ -288,6 +290,8 @@ function M.sync()
       error(string.format("create failed: %s", fname))
     end
   end
+
+  planner.execute_plan(plan)
 
   fill_dirbuf(CURRENT_BUFFER)
 end
