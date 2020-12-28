@@ -25,8 +25,9 @@ describe("dirbuf", function()
     end)
 
     it("only hash", function()
-      dirbuf.parse_line([[#0123456]])
-      assert.has_error(function() dirbuf.parse_line([[#0123456]]) end)
+      local fname, hash = dirbuf.parse_line([[#0123456]])
+      assert.equal(fname, "#0123456")
+      assert.is_nil(hash)
     end)
 
     it("invalid hash", function()

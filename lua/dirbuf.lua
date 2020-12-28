@@ -26,12 +26,15 @@ function M.parse_line(line)
   while true do
     local c = chars()
     if c == nil then
-      error("unexpected end of line")
-    elseif c == " " then
+      -- Ended line in fname
+      local fname = table.concat(string_builder)
+      return fname, nil
+
+    elseif c:match("%s") then
       break
     elseif c == "\\" then
       local next_c = chars()
-      if next_c == " " or next_c == "\\" then
+      if next_c:match("%s") or next_c == "\\" then
         table.insert(string_builder, next_c)
       else
         error(string.format("invalid escape sequence '\\%s'", next_c))
@@ -218,6 +221,8 @@ function M.enter()
   end
 end
 
+local DEFAULT_MODE = tonumber("644", 8)
+
 function M.sync()
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
@@ -229,10 +234,14 @@ function M.sync()
     transition_graph[hash] = {}
   end
 
+  -- TODO: Support directories as well
+  local new_files = {}
+
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
   for lnum, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
     local fname, hash = M.parse_line(line)
+    -- TODO: This is dead code. Use pcall
     if fname == nil then
       error(string.format("malformed line: %d", lnum))
     end
@@ -241,12 +250,26 @@ function M.sync()
       error(string.format("duplicate filename '%s'", fname))
     end
 
-    table.insert(transition_graph[hash], fname)
+    if hash ~= nil then
+      table.insert(transition_graph[hash], fname)
+    else
+      -- TODO: Determine ftype by ending of fname
+      table.insert(new_files, fname)
+    end
     used_fnames[fname] = true
   end
 
   local plan = planner.determine_plan(current_state, transition_graph)
   planner.execute_plan(plan)
+
+  -- TODO: Maybe move this to planner?
+  for _, fname in pairs(new_files) do
+    -- Just need to create it
+    local ok = uv.fs_open(fname, "w", DEFAULT_MODE)
+    if not ok then
+      error(string.format("create failed: %s", fname))
+    end
+  end
 
   fill_dirbuf(CURRENT_BUFFER)
 end
