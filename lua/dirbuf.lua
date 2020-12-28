@@ -277,9 +277,12 @@ function M.sync()
   local plan = planner.determine_plan(current_state, transition_graph)
   planner.execute_plan(plan)
 
-  -- TODO: Maybe move this to planner?
+  -- TODO: Maybe move this to planner with proper actions?
   for _, fname in ipairs(new_files) do
     -- Just need to create it
+    if uv.fs_access(fname, "W") then
+      error(string.format("file at '%s' already exists", fname))
+    end
     local ok = uv.fs_open(fname, "w", DEFAULT_MODE)
     if not ok then
       error(string.format("create failed: %s", fname))
