@@ -82,6 +82,15 @@ end
 local function fill_dirbuf(buf)
   local dir = api.nvim_buf_get_name(buf)
 
+  -- Used to preserve the ordering of lines. Each line is guaranteed to be used
+  -- exactly once assuming the buffer contains no non-existent fnames.
+  local fname_lnums = {}
+  for lnum, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+    local fname, _ = M.parse_line(line)
+    fname_lnums[fname] = lnum
+  end
+  local tail = #fname_lnums + 1
+
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
     error(err)
@@ -121,19 +130,25 @@ local function fill_dirbuf(buf)
       error(string.format("colliding hashes '%s'", hash))
     end
     file_info[hash] = {fname = fname, ftype = ftype}
+
     local fname_esc = vim.fn.fnameescape(fname)
-    table.insert(buf_lines, {fname_esc, nil, "  #" .. hash})
     if #fname_esc > max_len then
       max_len = #fname_esc
     end
+    local lnum = fname_lnums[fname]
+    if lnum == nil then
+      lnum = tail
+      tail = tail + 1
+    end
+    buf_lines[lnum] = {fname_esc, nil, "  #" .. hash}
 
     ::continue::
   end
   -- Now fill in the padding in the (fname_esc, padding, hash) tuples with
   -- appropriate padding such that the hashes line up
-  for key, tuple in pairs(buf_lines) do
+  for idx, tuple in ipairs(buf_lines) do
     tuple[2] = string.rep(" ", max_len - #tuple[1])
-    buf_lines[key] = table.concat(tuple)
+    buf_lines[idx] = table.concat(tuple)
   end
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
   api.nvim_buf_set_var(buf, "dirbuf", file_info)
@@ -239,7 +254,7 @@ function M.sync()
 
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
-  for lnum, line in pairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+  for lnum, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
     local fname, hash = M.parse_line(line)
     -- TODO: This is dead code. Use pcall
     if fname == nil then
@@ -247,7 +262,7 @@ function M.sync()
     end
 
     if used_fnames[fname] ~= nil then
-      error(string.format("duplicate filename '%s'", fname))
+      error(string.format("duplicate name '%s'", fname))
     end
 
     if hash ~= nil then
@@ -263,7 +278,7 @@ function M.sync()
   planner.execute_plan(plan)
 
   -- TODO: Maybe move this to planner?
-  for _, fname in pairs(new_files) do
+  for _, fname in ipairs(new_files) do
     -- Just need to create it
     local ok = uv.fs_open(fname, "w", DEFAULT_MODE)
     if not ok then
