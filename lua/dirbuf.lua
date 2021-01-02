@@ -260,6 +260,7 @@ function M.enter()
     M.open(dispname)
   elseif fstate.ftype == "file" then
     vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
+    -- TODO: cd to old directory
   else
     error("currently unsupported filetype")
   end
@@ -280,7 +281,6 @@ function M.sync()
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
   for _, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
-    -- TODO: Handle new files better
     local dispname, hash = M.parse_line(line)
     local new_fstate = dispname_to_fstate(dispname)
 

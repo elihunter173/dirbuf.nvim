@@ -90,6 +90,7 @@ function M.execute_plan(plan)
       local fstate = action.fstate
       -- TODO: Combine these
       if fstate.ftype == "file" then
+        -- TODO: This is a TOCTOU
         if uv.fs_access(fstate.fname, "W") then
           errorf("file at '%s' already exists", fstate.fname)
         end
@@ -99,6 +100,7 @@ function M.execute_plan(plan)
           errorf("create failed: %s", fstate.fname)
         end
       elseif fstate.ftype == "directory" then
+        -- TODO: This is a TOCTOU
         if uv.fs_access(fstate.fname, "W") then
           errorf("directory at '%s' already exists", fstate.fname)
         end
@@ -111,14 +113,14 @@ function M.execute_plan(plan)
       end
 
     elseif action.type == "copy" then
-      -- TODO: Support copying directories
+      -- TODO: Support copying directories. Needs keeping around fstates
       local ok = uv.fs_copyfile(action.old_fname, action.new_fname, nil)
       if not ok then
         errorf("copy failed: %s -> %s", action.old_fname, action.new_fname)
       end
 
     elseif action.type == "delete" then
-      -- TODO: Support deleting directories
+      -- TODO: Support deleting directories. Need to keep around fstates
       local ok = uv.fs_unlink(action.fname)
       if not ok then
         errorf("delete failed: %s", action.fname)
