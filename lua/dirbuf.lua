@@ -6,7 +6,44 @@ local planner = require("dirbuf.planner")
 
 local M = {}
 
+local function errorf(...)
+  error(string.format(...))
+end
+
 local CURRENT_BUFFER = 0
+
+-- TODO: Handle tabs in the string appropriately
+
+local function fstate_to_dispname(fstate)
+  -- TODO: Do all classifiers from here
+  -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
+  if fstate.ftype == "file" then
+    return fstate.fname
+  elseif fstate.ftype == "directory" then
+    return fstate.fname .. "/"
+  elseif fstate.ftype == "link" then
+    return fstate.fname .. "@"
+  else
+    return nil
+  end
+end
+
+local function dispname_to_fstate(dispname)
+  -- This is the last byte as a string, which is okay because all our
+  -- identifiers are single characters
+  local last_char = dispname:sub(-1, -1)
+  if last_char == "/" then
+    return {fname = dispname:sub(0, -2), ftype = "directory"}
+  elseif last_char == "@" then
+    return {fname = dispname:sub(0, -2), ftype = "link"}
+  else
+    return {fname = dispname, ftype = "file"}
+  end
+end
+
+local function dispname_escape(dispname)
+  return dispname:gsub("[ \\]", "\\%0")
+end
 
 local HASH_LEN = 7
 local function hash_fname(fname)
@@ -34,10 +71,10 @@ function M.parse_line(line)
       break
     elseif c == "\\" then
       local next_c = chars()
-      if next_c:match("%s") or next_c == "\\" then
+      if next_c == " " or next_c == "\\" then
         table.insert(string_builder, next_c)
       else
-        error(string.format("invalid escape sequence '\\%s'", next_c))
+        errorf("invalid escape sequence '\\%s'", next_c)
       end
     else
       table.insert(string_builder, c)
@@ -53,7 +90,7 @@ function M.parse_line(line)
     elseif c == "#" then
       break
     elseif not c:match("%s") then
-      error(string.format("unexpected character '%s'", c))
+      errorf("unexpected character '%s'", c)
     end
   end
 
@@ -64,7 +101,7 @@ function M.parse_line(line)
     if c == nil then
       error("unexpected end of line")
     elseif not c:match("%x") then
-      error(string.format("invalid hash character '%s'", c))
+      errorf("invalid hash character '%s'", c)
     else
       table.insert(string_builder, c)
     end
@@ -73,7 +110,7 @@ function M.parse_line(line)
 
   local c = chars()
   if c ~= nil then
-    error(string.format("extra character '%s'", c))
+    errorf("extra character '%s'", c)
   end
 
   return fname, hash
@@ -84,12 +121,12 @@ local function fill_dirbuf(buf)
 
   -- Used to preserve the ordering of lines. Each line is guaranteed to be used
   -- exactly once assuming the buffer contains no non-existent fnames.
-  local fname_lnums = {}
+  local dispname_lnums = {}
   for lnum, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
-    local fname, _ = M.parse_line(line)
-    fname_lnums[fname] = lnum
+    local dispname, _ = M.parse_line(line)
+    dispname_lnums[dispname] = lnum
   end
-  local tail = #fname_lnums + 1
+  local tail = #dispname_lnums + 1
 
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
@@ -116,31 +153,24 @@ local function fill_dirbuf(buf)
       goto continue
     end
 
-    -- TODO: Should I actually modify the fname like this?
-    -- TODO: Do all classifiers from here
-    -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
-    if ftype == "directory" then
-      fname = fname .. "/"
-    elseif ftype == "link" then
-      fname = fname .. "@"
-    end
-
     local hash = hash_fname(fname)
     if file_info[hash] ~= nil then
-      error(string.format("colliding hashes '%s'", hash))
+      errorf("colliding hashes '%s'", hash)
     end
     file_info[hash] = {fname = fname, ftype = ftype}
 
-    local fname_esc = vim.fn.fnameescape(fname)
-    if #fname_esc > max_len then
-      max_len = #fname_esc
+
+    local dispname = fstate_to_dispname({fname = fname, ftype = ftype})
+    local dispname_esc = dispname_escape(dispname)
+    if #dispname_esc > max_len then
+      max_len = #dispname_esc
     end
-    local lnum = fname_lnums[fname]
+    local lnum = dispname_lnums[dispname]
     if lnum == nil then
       lnum = tail
       tail = tail + 1
     end
-    buf_lines[lnum] = {fname_esc, nil, "  #" .. hash}
+    buf_lines[lnum] = {dispname_esc, nil, "  #" .. hash}
 
     ::continue::
   end
@@ -224,11 +254,10 @@ function M.enter()
   end
 
   local line = api.nvim_get_current_line()
-  local fname, hash = M.parse_line(line)
+  local dispname, hash = M.parse_line(line)
   local fstate = vim.b.dirbuf[hash]
-  assert(fstate.fname == fname)
   if fstate.ftype == "directory" then
-    M.open(fname)
+    M.open(dispname)
   elseif fstate.ftype == "file" then
     vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
   else
@@ -236,61 +265,42 @@ function M.enter()
   end
 end
 
-local DEFAULT_MODE = tonumber("644", 8)
-
 function M.sync()
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
-  local current_state = vim.b.dirbuf
+  local fstates = vim.b.dirbuf
 
   -- Map from hash to fnames associated with that hash
   local transition_graph = {}
-  for hash, _ in pairs(current_state) do
+  transition_graph[""] = {}
+  for hash, _ in pairs(fstates) do
     transition_graph[hash] = {}
   end
 
-  -- TODO: Support directories as well
-  local new_files = {}
-
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
-  for lnum, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
-    local fname, hash = M.parse_line(line)
-    -- TODO: This is dead code. Use pcall
-    if fname == nil then
-      error(string.format("malformed line: %d", lnum))
+  for _, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+    -- TODO: Handle new files better
+    local dispname, hash = M.parse_line(line)
+    local new_fstate = dispname_to_fstate(dispname)
+
+    if used_fnames[new_fstate.fname] ~= nil then
+      errorf("duplicate name '%s'", dispname)
+    end
+    if hash ~= nil and fstates[hash].ftype ~= new_fstate.ftype then
+      error("cannot change ftype")
     end
 
-    if used_fnames[fname] ~= nil then
-      error(string.format("duplicate name '%s'", fname))
-    end
-
-    if hash ~= nil then
-      table.insert(transition_graph[hash], fname)
+    -- TODO: Consistently use fstate rather than fname
+    if hash == nil then
+      table.insert(transition_graph[""], new_fstate)
     else
-      -- TODO: Determine ftype by ending of fname
-      table.insert(new_files, fname)
+      table.insert(transition_graph[hash], new_fstate.fname)
     end
-    used_fnames[fname] = true
+    used_fnames[new_fstate.fname] = true
   end
 
-  local plan = planner.determine_plan(current_state, transition_graph)
-
-  -- TODO: Move this to planner with proper action. We do this before executing
-  -- the plan because I haven't figured out a good way to prevent deleting
-  -- files and then creating new ones if their IDs have been deleted or if I
-  -- even should prevent that.
-  for _, fname in ipairs(new_files) do
-    -- Just need to create it
-    if uv.fs_access(fname, "W") then
-      error(string.format("file at '%s' already exists", fname))
-    end
-    local ok = uv.fs_open(fname, "w", DEFAULT_MODE)
-    if not ok then
-      error(string.format("create failed: %s", fname))
-    end
-  end
-
+  local plan = planner.determine_plan(fstates, transition_graph)
   planner.execute_plan(plan)
 
   fill_dirbuf(CURRENT_BUFFER)
