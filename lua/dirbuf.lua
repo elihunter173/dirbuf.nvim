@@ -7,7 +7,7 @@ local planner = require("dirbuf.planner")
 local M = {}
 
 local function errorf(...)
-  error(string.format(...))
+  error(string.format(...), 2)
 end
 
 local CURRENT_BUFFER = 0
@@ -74,7 +74,7 @@ function M.parse_line(line)
       if next_c == " " or next_c == "\\" then
         table.insert(string_builder, next_c)
       else
-        errorf("invalid escape sequence '\\%s'", next_c)
+        errorf("invalid escape sequence '\\%s'", next_c or "<EOF>")
       end
     else
       table.insert(string_builder, c)
@@ -134,7 +134,7 @@ local function fill_dirbuf(buf)
   end
   -- Fill out buffer
   -- Stores file info by hash
-  local file_info = {}
+  local fstates = {}
   -- Stores (fname_esc, padding, hash) tuples which we will join into strings
   -- later to form the buffer's lines. We fill in the padding at the end to
   -- line up the hashes.
@@ -154,10 +154,10 @@ local function fill_dirbuf(buf)
     end
 
     local hash = hash_fname(fname)
-    if file_info[hash] ~= nil then
+    if fstates[hash] ~= nil then
       errorf("colliding hashes '%s'", hash)
     end
-    file_info[hash] = {fname = fname, ftype = ftype}
+    fstates[hash] = {fname = fname, ftype = ftype}
 
 
     local dispname = fstate_to_dispname({fname = fname, ftype = ftype})
@@ -181,7 +181,7 @@ local function fill_dirbuf(buf)
     buf_lines[idx] = table.concat(tuple)
   end
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
-  api.nvim_buf_set_var(buf, "dirbuf", file_info)
+  api.nvim_buf_set_var(buf, "dirbuf", fstates)
 
   -- Us filling the buffer counts as modifying it
   api.nvim_buf_set_option(buf, "modified", false)
@@ -280,7 +280,7 @@ function M.sync()
     if hash == nil then
       table.insert(transition_graph[""], new_fstate)
     else
-      table.insert(transition_graph[hash], new_fstate.fname)
+      table.insert(transition_graph[hash], new_fstate)
     end
     used_fnames[new_fstate.fname] = true
   end
