@@ -54,7 +54,7 @@ end
 -- regular expression. However, Lua doesn't have a proper regex engine, just
 -- simpler patterns. These patterns can't parse dirbuf lines (b/c of escaping),
 -- so I manually build the parser. It also gives nicer error messages.
-function M.parse_line(line)
+local function parse_line(line)
   local string_builder = {}
   -- We store this in a local so we can skip characters
   local chars = line:gmatch(".")
@@ -123,7 +123,7 @@ local function fill_dirbuf(buf)
   -- exactly once assuming the buffer contains no non-existent fnames.
   local dispname_lnums = {}
   for lnum, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
-    local dispname, _ = M.parse_line(line)
+    local dispname, _ = parse_line(line)
     dispname_lnums[dispname] = lnum
   end
   local tail = #dispname_lnums + 1
@@ -245,7 +245,7 @@ function M.enter()
   end
 
   local line = api.nvim_get_current_line()
-  local _, hash = M.parse_line(line)
+  local _, hash = parse_line(line)
   local fstate = vim.b.dirbuf[hash]
   -- We rely on the autocmd to open directories
   vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
@@ -266,7 +266,7 @@ function M.sync()
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
   for _, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
-    local dispname, hash = M.parse_line(line)
+    local dispname, hash = parse_line(line)
     local new_fstate = dispname_to_fstate(dispname)
 
     if used_fnames[new_fstate.fname] ~= nil then
@@ -276,7 +276,6 @@ function M.sync()
       error("cannot change ftype")
     end
 
-    -- TODO: Consistently use fstate rather than fname
     if hash == nil then
       table.insert(transition_graph[""], new_fstate)
     else
@@ -289,6 +288,58 @@ function M.sync()
   planner.execute_plan(plan)
 
   fill_dirbuf(CURRENT_BUFFER)
+end
+
+function M.test()
+  describe("parse_line", function()
+    it("simple line", function()
+      local fname, hash = parse_line([[README.md  #dedbeef]])
+      assert.equal(fname, "README.md")
+      assert.equal(hash, "dedbeef")
+    end)
+
+    it("escaped spaces", function()
+      local fname, hash = parse_line([[\ a\ b\ c\   #0123456]])
+      assert.equal(fname, " a b c ")
+      assert.equal(hash, "0123456")
+    end)
+
+    it("escaped backslashes", function()
+      local fname, hash = parse_line([[before\\after  #0123456]])
+      assert.equal(fname, [[before\after]])
+      assert.equal(hash, "0123456")
+    end)
+
+    it("invalid escape sequence", function()
+      assert.has_error(function() parse_line([[\a  #0123456]]) end)
+    end)
+
+    it("only hash", function()
+      local fname, hash = parse_line([[#0123456]])
+      assert.equal(fname, "#0123456")
+      assert.is_nil(hash)
+    end)
+
+    it("invalid hash", function()
+      assert.has_error(function() parse_line([[foo #012345]]) end)
+      assert.has_error(function() parse_line([[foo #01234567]]) end)
+      assert.has_error(function() parse_line([[foo #012345z]]) end)
+    end)
+
+    it("leading space", function()
+      assert.has_error(function() parse_line([[ foo #0123456]]) end)
+    end)
+
+    it("extra token", function()
+      assert.has_error(function() parse_line([[foo bar #0123456]]) end)
+    end)
+
+    it("non-ASCII fnames", function()
+      local fname, hash = parse_line([[文档  #0123456]])
+      assert.equal(fname, "文档")
+      assert.equal(hash, "0123456")
+    end)
+  end)
 end
 
 return M
