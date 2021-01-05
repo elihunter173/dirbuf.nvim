@@ -199,6 +199,8 @@ end
 
 -- This buffer must be the currently focused buffer
 function M.init_dirbuf(buf)
+  -- TODO: Should I stop with init_dirbuf if the buf already has `b:dirbuf`
+  -- defined?
   local dir = clean_path(api.nvim_buf_get_name(buf))
   api.nvim_buf_set_name(buf, dir)
 
@@ -208,16 +210,8 @@ function M.init_dirbuf(buf)
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
-  local old_dir = uv.cwd()
+  api.nvim_buf_set_var(buf, "dirbuf_old_dir", uv.cwd())
   api.nvim_set_current_dir(dir)
-
-  vim.cmd("augroup dirbuf_local")
-  vim.cmd("  autocmd! * <buffer>")
-  vim.cmd("  autocmd BufLeave <buffer> silent cd " ..
-              vim.fn.fnameescape(old_dir))
-  vim.cmd("  autocmd BufEnter <buffer> silent cd " .. vim.fn.fnameescape(dir))
-  vim.cmd("  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()")
-  vim.cmd("augroup END")
 end
 
 function M.open(dir)
@@ -226,26 +220,23 @@ function M.open(dir)
   end
   dir = clean_path(dir)
 
-  local old_buf = vim.fn.bufnr("^" .. dir .. "$")
-  if old_buf ~= -1 then
-    vim.cmd("buffer " .. old_buf)
-
-  else
-    local buf = api.nvim_create_buf(true, false)
+  local buf = vim.fn.bufnr("^" .. dir .. "$")
+  if buf == -1 then
+    buf = api.nvim_create_buf(true, false)
     if buf == 0 then
       error("failed to create buffer")
     end
     api.nvim_buf_set_name(buf, dir)
-
-    -- We must first change buffers before we change the save the old directory
-    -- and switch directories. That is because we use BufLeave to reset the
-    -- current directory and we don't want to change the saved current directory
-    -- when we go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf)
-    -- because that doesn't trigger autocmds.
-    vim.cmd("buffer " .. buf)
-
-    M.init_dirbuf(buf)
   end
+
+  -- We must first change buffers before we change the save the old directory
+  -- and switch directories. That is because we use BufLeave to reset the
+  -- current directory and we don't want to change the saved current directory
+  -- when we go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf)
+  -- because that doesn't trigger autocmds.
+  --
+  -- We rely on the autocmd to init the dirbuf.
+  vim.cmd("buffer " .. buf)
 end
 
 function M.enter()
@@ -254,16 +245,10 @@ function M.enter()
   end
 
   local line = api.nvim_get_current_line()
-  local dispname, hash = M.parse_line(line)
+  local _, hash = M.parse_line(line)
   local fstate = vim.b.dirbuf[hash]
-  if fstate.ftype == "directory" then
-    M.open(dispname)
-  elseif fstate.ftype == "file" then
-    vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
-    -- TODO: cd to old directory
-  else
-    error("currently unsupported filetype")
-  end
+  -- We rely on the autocmd to open directories
+  vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
 end
 
 function M.sync()

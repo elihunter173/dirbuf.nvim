@@ -1,6 +1,6 @@
 local planner = require("dirbuf.planner")
 
-describe("dirbuf.plnner", function()
+describe("dirbuf.planner", function()
   describe("determine_plan", function()
     it("no changes", function()
       local identities = {
