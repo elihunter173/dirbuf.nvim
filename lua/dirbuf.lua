@@ -229,14 +229,21 @@ function M.open(dir)
     api.nvim_buf_set_name(buf, dir)
   end
 
-  -- We must first change buffers before we change the save the old directory
-  -- and switch directories. That is because we use BufLeave to reset the
-  -- current directory and we don't want to change the saved current directory
-  -- when we go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf)
-  -- because that doesn't trigger autocmds.
-  --
+  -- We must first change buffers before we save the old directory and switch
+  -- directories. That is because we use BufLeave to reset the current
+  -- directory and we don't want to change the saved current directory when we
+  -- go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf) because
+  -- that doesn't trigger autocmds.
+
   -- We rely on the autocmd to init the dirbuf.
-  vim.cmd("buffer " .. buf)
+  -- XXX: This doesn't work because of https://github.com/neovim/neovim/issues/13711
+  -- vim.cmd("buffer " .. buf)
+
+  -- HACK: To work around the BufEnter error swallowing, we emulate :buffer as
+  -- best we can.
+  vim.cmd("doautocmd BufLeave")
+  M.init_dirbuf(buf)
+  api.nvim_win_set_buf(0, buf)
 end
 
 function M.enter()
