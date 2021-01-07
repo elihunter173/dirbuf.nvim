@@ -39,43 +39,34 @@ local function action_copy(args)
   end
 end
 
-local function rmdir(dir)
-  local handle = uv.fs_scandir(dir)
-  while true do
-    local fname, ftype = uv.fs_scandir_next(handle)
-    if fname == nil then
-      break
+-- TODO: Use err instead of return
+local function rm(fname, ftype)
+  if ftype == "file" or ftype == "symlink" then
+    return uv.fs_unlink(fname)
+
+  elseif ftype == "directory" then
+    local handle = uv.fs_scandir(fname)
+    while true do
+      local new_fname, new_ftype = uv.fs_scandir_next(handle)
+      if new_fname == nil then
+        break
+      end
+      local ok, err, name = rm(fname .. "/" .. new_fname, new_ftype)
+      if not ok then
+        return ok, err, name
+      end
     end
-    local path = dir .. "/" .. fname
-    local ok
-    if ftype == "directory" then
-      ok = rmdir(path)
-    elseif ftype == "file" then
-      ok = uv.fs_unlink(path)
-    else
-      error("unsupported filetype")
-    end
-    if not ok then
-      return ok
-    end
+    return uv.fs_rmdir(fname)
+  else
+    return false, "unrecognized ftype", "dirbuf_internal"
   end
-  return uv.fs_rmdir(dir)
 end
 
 local function action_delete(args)
   local fstate = args.fstate
-  if fstate.ftype == "file" then
-    local ok = uv.fs_unlink(fstate.fname)
-    if not ok then
-      errorf("delete failed: %s", fstate.fname)
-    end
-  elseif fstate.ftype == "directory" then
-    local ok = rmdir(fstate.fname)
-    if not ok then
-      errorf("delete failed: %s", fstate.fname)
-    end
-  else
-    error("delete failed: unsupported ftype")
+  local ok, err, _ = rm(fstate.fname, fstate.ftype)
+  if not ok then
+    errorf("delete failed: %s", err)
   end
 end
 
