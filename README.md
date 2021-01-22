@@ -22,7 +22,7 @@ Here is a quick list of features implemented.
   * [ ] Circular renaming.
   * [ ] Concurrent action execution.
 * Misc:
-  * [ ] An easy way to refresh dirbufs.
+  * [x] An easy way to refresh dirbufs.
   * [ ] Useful errors messages.
   * [ ] Docs.
 

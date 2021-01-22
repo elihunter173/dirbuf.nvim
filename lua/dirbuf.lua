@@ -125,7 +125,7 @@ local function fill_dirbuf(buf)
   -- Used to preserve the ordering of lines. Each line is guaranteed to be used
   -- exactly once assuming the buffer contains no non-existent fnames.
   local dispname_lnums = {}
-  for lnum, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+  for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
     local dispname, _ = parse_line(line)
     dispname_lnums[dispname] = lnum
   end
@@ -198,11 +198,11 @@ function M.init_dirbuf(buf)
   local dir = clean_path(api.nvim_buf_get_name(buf))
   api.nvim_buf_set_name(buf, dir)
 
-  fill_dirbuf(buf)
-
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
+
+  fill_dirbuf(buf)
 
   api.nvim_buf_set_var(buf, "dirbuf_old_dir", uv.cwd())
   api.nvim_set_current_dir(dir)
