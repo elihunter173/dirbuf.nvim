@@ -17,6 +17,8 @@ local CURRENT_BUFFER = 0
 local function fstate_to_dispname(fstate)
   -- TODO: Do all classifiers from here
   -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
+  -- with types from
+  -- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
   if fstate.ftype == "file" then
     return fstate.fname
   elseif fstate.ftype == "directory" then
@@ -24,7 +26,8 @@ local function fstate_to_dispname(fstate)
   elseif fstate.ftype == "link" then
     return fstate.fname .. "@"
   else
-    return nil
+    -- Should I just assume it's a file??
+    errorf("unrecognized ftype %s", vim.inspect(fstate.ftype))
   end
 end
 
@@ -147,20 +150,13 @@ local function fill_dirbuf(buf)
       break
     end
 
-    -- Skip hidden files
-    -- TODO: Make skipping hidden files more easily configurable
-    if not vim.g.dirbuf_show_hidden and fname:match("^%.") then
-      goto continue
-    end
-
     local hash = hash_fname(fname)
     if fstates[hash] ~= nil then
       errorf("colliding hashes '%s'", hash)
     end
     fstates[hash] = {fname = fname, ftype = ftype}
 
-
-    local dispname = fstate_to_dispname({fname = fname, ftype = ftype})
+    local dispname = fstate_to_dispname(fstates[hash])
     local dispname_esc = dispname_escape(dispname)
     if #dispname_esc > max_len then
       max_len = #dispname_esc
@@ -171,8 +167,6 @@ local function fill_dirbuf(buf)
       tail = tail + 1
     end
     buf_lines[lnum] = {dispname_esc, nil, "  #" .. hash}
-
-    ::continue::
   end
   -- Now fill in the padding in the (fname_esc, padding, hash) tuples with
   -- appropriate padding such that the hashes line up
@@ -242,8 +236,8 @@ function M.open(dir)
   -- HACK: To work around the BufEnter error swallowing, we emulate :buffer as
   -- best we can.
   vim.cmd("doautocmd BufLeave")
-  M.init_dirbuf(buf)
   api.nvim_win_set_buf(0, buf)
+  M.init_dirbuf(buf)
 end
 
 function M.enter()
