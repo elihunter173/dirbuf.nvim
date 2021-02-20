@@ -6,7 +6,9 @@ local function errorf(...)
   error(string.format(...), 2)
 end
 
-local DEFAULT_MODE = tonumber("644", 8)
+-- Directories have to be executable for you to chdir into them
+local DEFAULT_FILE_MODE = tonumber("644", 8)
+local DEFAULT_DIR_MODE = tonumber("755", 8)
 local function action_create(args)
   local fstate = args.fstate
 
@@ -18,9 +20,9 @@ local function action_create(args)
   local ok
   if fstate.ftype == "file" then
     -- append instead of write to be non-destructive
-    ok = uv.fs_open(fstate.fname, "a", DEFAULT_MODE)
+    ok = uv.fs_open(fstate.fname, "a", DEFAULT_FILE_MODE)
   elseif fstate.ftype == "directory" then
-    ok = uv.fs_mkdir(fstate.fname, DEFAULT_MODE)
+    ok = uv.fs_mkdir(fstate.fname, DEFAULT_DIR_MODE)
   else
     errorf("unsupported ftype: %s", fstate.ftype)
   end
