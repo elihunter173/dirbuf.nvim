@@ -1,9 +1,10 @@
 local api = vim.api
 local uv = vim.loop
 
-local md5 = require("dirbuf.md5")
-local planner = require("dirbuf.planner")
 local errorf = require("dirbuf.utils").errorf
+local planner = require("dirbuf.planner")
+local fs = require("dirbuf.fs")
+local FState = fs.FState
 
 local M = {}
 
@@ -11,43 +12,8 @@ local CURRENT_BUFFER = 0
 
 -- TODO: Handle tabs in the string appropriately
 
-local function fstate_to_dispname(fstate)
-  -- TODO: Do all classifiers from here
-  -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
-  -- with types from
-  -- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
-  if fstate.ftype == "file" then
-    return fstate.fname
-  elseif fstate.ftype == "directory" then
-    return fstate.fname .. "/"
-  elseif fstate.ftype == "link" then
-    return fstate.fname .. "@"
-  else
-    -- Should I just assume it's a file??
-    errorf("unrecognized ftype %s", vim.inspect(fstate.ftype))
-  end
-end
-
-local function dispname_to_fstate(dispname)
-  -- This is the last byte as a string, which is okay because all our
-  -- identifiers are single characters
-  local last_char = dispname:sub(-1, -1)
-  if last_char == "/" then
-    return {fname = dispname:sub(0, -2), ftype = "directory"}
-  elseif last_char == "@" then
-    return {fname = dispname:sub(0, -2), ftype = "link"}
-  else
-    return {fname = dispname, ftype = "file"}
-  end
-end
-
 local function dispname_escape(dispname)
   return dispname:gsub("[ \\]", "\\%0")
-end
-
-local HASH_LEN = 7
-local function hash_fname(fname)
-  return md5.sumhexa(fname):sub(1, HASH_LEN)
 end
 
 -- The language of valid dirbuf lines is regular, so normally I would use a
@@ -96,7 +62,7 @@ local function parse_line(line)
 
   -- Parse hash
   string_builder = {}
-  for _ = 1, HASH_LEN do
+  for _ = 1, fs.HASH_LEN do
     local c = chars()
     if c == nil then
       error("unexpected end of line")
@@ -147,13 +113,14 @@ local function fill_dirbuf(buf)
       break
     end
 
-    local hash = hash_fname(fname)
+    local fstate = FState(fname, ftype)
+    local hash = fstate:hash()
     if fstates[hash] ~= nil then
       errorf("colliding hashes '%s'", hash)
     end
-    fstates[hash] = {fname = fname, ftype = ftype}
+    fstates[hash] = fstate
 
-    local dispname = fstate_to_dispname(fstates[hash])
+    local dispname = fstate:dispname()
     local dispname_esc = dispname_escape(dispname)
     if #dispname_esc > max_len then
       max_len = #dispname_esc
@@ -265,7 +232,7 @@ function M.sync()
   local used_fnames = {}
   for _, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
     local dispname, hash = parse_line(line)
-    local new_fstate = dispname_to_fstate(dispname)
+    local new_fstate = FState.from_dispname(dispname)
 
     if used_fnames[new_fstate.fname] ~= nil then
       errorf("duplicate name '%s'", dispname)

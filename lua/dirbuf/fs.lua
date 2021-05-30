@@ -1,7 +1,53 @@
 local uv = vim.loop
+
 local errorf = require("dirbuf.utils").errorf
+local md5 = require("dirbuf.md5")
 
 local M = {}
+
+M.FState = {}
+local FState = M.FState
+
+function FState.new(fname, ftype)
+  local o = {fname = fname, ftype = ftype}
+  setmetatable(o, FState)
+  return o
+end
+
+function FState.from_dispname(dispname)
+  -- This is the last byte as a string, which is okay because all our
+  -- identifiers are single characters
+  local last_char = dispname:sub(-1, -1)
+  if last_char == "/" then
+    return FState.new(dispname:sub(0, -2), "directory")
+  elseif last_char == "@" then
+    return FState.new(dispname:sub(0, -2), "link")
+  else
+    return FState.new(dispname, "file")
+  end
+end
+
+function FState:dispname()
+  -- TODO: Do all classifiers from here
+  -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
+  -- with types from
+  -- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
+  if self.ftype == "file" then
+    return self.fname
+  elseif self.ftype == "directory" then
+    return self.fname .. "/"
+  elseif self.ftype == "link" then
+    return self.fname .. "@"
+  else
+    -- Should I just assume it's a file??
+    errorf("unrecognized ftype %s", vim.inspect(self.ftype))
+  end
+end
+
+M.HASH_LEN = 7
+function FState:hash()
+  return md5.sumhexa(self.fname):sub(1, M.HASH_LEN)
+end
 
 -- Directories have to be executable for you to chdir into them
 local DEFAULT_FILE_MODE = tonumber("644", 8)

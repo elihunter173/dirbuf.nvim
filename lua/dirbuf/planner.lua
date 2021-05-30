@@ -1,4 +1,4 @@
-local actions = require("dirbuf.fs")
+local fs = require("dirbuf.fs")
 
 local M = {}
 
@@ -80,25 +80,13 @@ function M.execute_plan(plan)
   -- TODO: Check that all actions are valid before taking any action?
   -- determine_plan should only generate valid plans
   for _, action in ipairs(plan) do
-    actions[action.type](action)
+    fs[action.type](action)
   end
 end
 
 function M.test()
+  local fst = fs.FState.from_dispname
 
-  -- Taken from dirbuf.lua
-  local function fst(dispname)
-    -- This is the last byte as a string, which is okay because all our
-    -- identifiers are single characters
-    local last_char = dispname:sub(-1, -1)
-    if last_char == "/" then
-      return {fname = dispname:sub(0, -2), ftype = "directory"}
-    elseif last_char == "@" then
-      return {fname = dispname:sub(0, -2), ftype = "link"}
-    else
-      return {fname = dispname, ftype = "file"}
-    end
-  end
   describe("determine_plan", function()
     it("no changes", function()
       local fstates = {a = fst("a"), b = fst("b")}
