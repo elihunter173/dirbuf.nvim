@@ -2,16 +2,16 @@ local fs = require("dirbuf.fs")
 
 local M = {}
 
--- Given the current state of the directory, `old_state`, and the desired new
--- state of the directory, `new_state`, determine the most efficient series of
--- actions necessary to reach the desired state.
+-- Given the current state of the directory, `changes`, and a map describing
+-- the changes, `changes`, determine the most efficient series of actions
+-- necessary to reach the desired state.
 --
--- old_state: Map from file hash to current state of file
--- new_state: Map from file hash to list of new associated fstate
-function M.determine_plan(fstates, transformations)
+-- fstates: Map from FState hash to current FState of file.
+-- new_state: Map from FState hash to list of new associated FStates.
+function M.determine_plan(fstates, changes)
   local plan = {}
 
-  for hash, dst_fstates in pairs(transformations) do
+  for hash, dst_fstates in pairs(changes) do
     if hash == "" then
       -- New hash, so it's a new file
       for _, fstate in ipairs(dst_fstates) do
@@ -89,9 +89,9 @@ function M.test()
 
   describe("determine_plan", function()
     it("no changes", function()
-      local fstates = {a = fst("a"), b = fst("b")}
+      local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {fst("a")}, b = {fst("b")}}
-      assert.same({}, M.determine_plan(fstates, changes))
+      assert.same({}, M.determine_plan(identities, changes))
     end)
 
     it("rename one", function()
