@@ -1,88 +1,6 @@
-local uv = vim.loop
+local actions = require("dirbuf.fs")
 
 local M = {}
-
-local function errorf(...)
-  error(string.format(...), 2)
-end
-
--- Directories have to be executable for you to chdir into them
-local DEFAULT_FILE_MODE = tonumber("644", 8)
-local DEFAULT_DIR_MODE = tonumber("755", 8)
-local function action_create(args)
-  local fstate = args.fstate
-
-  -- TODO: This is a TOCTOU
-  if uv.fs_access(fstate.fname, "W") then
-    errorf("%s at '%s' already exists", fstate.ftype, fstate.fname)
-  end
-
-  local ok
-  if fstate.ftype == "file" then
-    -- append instead of write to be non-destructive
-    ok = uv.fs_open(fstate.fname, "a", DEFAULT_FILE_MODE)
-  elseif fstate.ftype == "directory" then
-    ok = uv.fs_mkdir(fstate.fname, DEFAULT_DIR_MODE)
-  else
-    errorf("unsupported ftype: %s", fstate.ftype)
-  end
-
-  if not ok then
-    errorf("create failed: %s", fstate.fname)
-  end
-end
-
-local function action_copy(args)
-  local old_fname, new_fname = args.old_fname, args.new_fname
-  -- TODO: Support copying directories. Needs keeping around fstates
-  local ok = uv.fs_copyfile(old_fname, new_fname, nil)
-  if not ok then
-    errorf("copy failed: %s -> %s", old_fname, new_fname)
-  end
-end
-
--- TODO: Use err instead of return
-local function rm(fname, ftype)
-  if ftype == "file" or ftype == "symlink" then
-    return uv.fs_unlink(fname)
-
-  elseif ftype == "directory" then
-    local handle = uv.fs_scandir(fname)
-    while true do
-      local new_fname, new_ftype = uv.fs_scandir_next(handle)
-      if new_fname == nil then
-        break
-      end
-      local ok, err, name = rm(fname .. "/" .. new_fname, new_ftype)
-      if not ok then
-        return ok, err, name
-      end
-    end
-    return uv.fs_rmdir(fname)
-  else
-    return false, "unrecognized ftype", "dirbuf_internal"
-  end
-end
-
-local function action_delete(args)
-  local fstate = args.fstate
-  local ok, err, _ = rm(fstate.fname, fstate.ftype)
-  if not ok then
-    errorf("delete failed: %s", err)
-  end
-end
-
-local function action_move(args)
-  local old_fname, new_fname = args.old_fname, args.new_fname
-  -- TODO: This is a TOCTOU
-  if uv.fs_access(new_fname, "W") then
-    errorf("file at '%s' already exists", new_fname)
-  end
-  local ok = uv.fs_rename(old_fname, new_fname)
-  if not ok then
-    errorf("move failed: %s -> %s", old_fname, new_fname)
-  end
-end
 
 -- Given the current state of the directory, `old_state`, and the desired new
 -- state of the directory, `new_state`, determine the most efficient series of
@@ -90,19 +8,19 @@ end
 --
 -- old_state: Map from file hash to current state of file
 -- new_state: Map from file hash to list of new associated fstate
-function M.determine_plan(fstates, transformation_graph)
+function M.determine_plan(fstates, transformations)
   local plan = {}
 
-  for hash, dst_fstates in pairs(transformation_graph) do
+  for hash, dst_fstates in pairs(transformations) do
     if hash == "" then
       -- New hash, so it's a new file
       for _, fstate in ipairs(dst_fstates) do
-        table.insert(plan, {fn = action_create, fstate = fstate})
+        table.insert(plan, {type = "create", fstate = fstate})
       end
 
     elseif next(dst_fstates) == nil then
       -- Graph goes nowhere
-      table.insert(plan, {fn = action_delete, fstate = fstates[hash]})
+      table.insert(plan, {type = "delete", fstate = fstates[hash]})
 
     else
       -- We just use fname because we can move across
@@ -122,7 +40,7 @@ function M.determine_plan(fstates, transformation_graph)
         for _, dst_fstate in ipairs(dst_fstates) do
           if current_fname ~= dst_fstate.fname then
             table.insert(plan, {
-              fn = action_copy,
+              type = "copy",
               old_fname = current_fname,
               new_fname = dst_fstate.fname,
             })
@@ -139,14 +57,14 @@ function M.determine_plan(fstates, transformation_graph)
             first = false
           else
             table.insert(plan, {
-              fn = action_copy,
+              type = "copy",
               old_fname = current_fname,
               new_fname = dst_fstate.fname,
             })
           end
         end
         table.insert(plan, {
-          fn = action_move,
+          type = "move",
           old_fname = current_fname,
           new_fname = move_to.fname,
         })
@@ -162,7 +80,7 @@ function M.execute_plan(plan)
   -- TODO: Check that all actions are valid before taking any action?
   -- determine_plan should only generate valid plans
   for _, action in ipairs(plan) do
-    action.fn(action)
+    actions[action.type](action)
   end
 end
 
@@ -191,25 +109,21 @@ function M.test()
     it("rename one", function()
       local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {fst("c")}, b = {fst("b")}}
-      local correct_plan = {
-        {fn = action_move, old_fname = "a", new_fname = "c"},
-      }
+      local correct_plan = {{type = "move", old_fname = "a", new_fname = "c"}}
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
 
     it("delete one", function()
       local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {}, b = {fst("b")}}
-      local correct_plan = {{fn = action_delete, fstate = fst("a")}}
+      local correct_plan = {{type = "delete", fstate = fst("a")}}
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
 
     it("copy one", function()
       local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {fst("a"), fst("c")}, b = {fst("b")}}
-      local correct_plan = {
-        {fn = action_copy, old_fname = "a", new_fname = "c"},
-      }
+      local correct_plan = {{type = "copy", old_fname = "a", new_fname = "c"}}
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
 
@@ -217,8 +131,8 @@ function M.test()
       local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {fst("b")}, b = {fst("c")}}
       local correct_plan = {
-        {fn = action_move, old_fname = "b", new_fname = "c"},
-        {fn = action_move, old_fname = "a", new_fname = "b"},
+        {type = "move", old_fname = "b", new_fname = "c"},
+        {type = "move", old_fname = "a", new_fname = "b"},
       }
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
@@ -227,10 +141,10 @@ function M.test()
       local identities = {a = fst("a"), b = fst("b"), c = fst("c")}
       local changes = {a = {fst("b"), fst("d")}, b = {fst("c")}, c = {fst("a")}}
       local correct_plan = {
-        {fn = action_move, old_fname = "a", new_fname = "d"},
-        {fn = action_move, old_fname = "c", new_fname = "a"},
-        {fn = action_move, old_fname = "b", new_fname = "c"},
-        {fn = action_copy, old_fname = "d", new_fname = "c"},
+        {type = "move", old_fname = "a", new_fname = "d"},
+        {type = "move", old_fname = "c", new_fname = "a"},
+        {type = "move", old_fname = "b", new_fname = "c"},
+        {type = "copy", old_fname = "d", new_fname = "c"},
       }
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)

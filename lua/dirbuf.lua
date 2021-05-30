@@ -3,12 +3,9 @@ local uv = vim.loop
 
 local md5 = require("dirbuf.md5")
 local planner = require("dirbuf.planner")
+local errorf = require("dirbuf.utils").errorf
 
 local M = {}
-
-local function errorf(...)
-  error(string.format(...), 2)
-end
 
 local CURRENT_BUFFER = 0
 
