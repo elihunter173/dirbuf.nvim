@@ -114,7 +114,7 @@ local function fill_dirbuf(buf)
       break
     end
 
-    local fstate = FState(fname, ftype)
+    local fstate = FState.new(fname, ftype)
     local hash = fstate:hash()
     if fstates[hash] ~= nil then
       errorf("colliding hashes '%s'", hash)
