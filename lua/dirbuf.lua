@@ -52,7 +52,8 @@ local function parse_line(line)
   while true do
     local c = chars()
     if c == nil then
-      error("unexpected end of line")
+      -- Ended line before hash
+      return fname, nil
     elseif c == "#" then
       break
     elseif not c:match("%s") then
@@ -303,6 +304,12 @@ function M.test()
       assert.has_error(function()
         parse_line([[ foo #0123456]])
       end)
+    end)
+
+    it("trailing space, no hash", function()
+      local fname, hash = parse_line([[foo ]])
+      assert.equal(fname, [[foo]])
+      assert.is_nil(hash)
     end)
 
     it("extra token", function()
