@@ -10,7 +10,7 @@ local FState = M.FState
 
 function FState.new(fname, ftype)
   local o = {fname = fname, ftype = ftype}
-  setmetatable(o, FState)
+  setmetatable(o, {__index = FState})
   return o
 end
 
