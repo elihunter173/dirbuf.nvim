@@ -80,7 +80,7 @@ function M.execute_plan(plan)
   -- TODO: Check that all actions are valid before taking any action?
   -- determine_plan should only generate valid plans
   for _, action in ipairs(plan) do
-    fs[action.type](action)
+    fs.actions[action.type](action)
   end
 end
 

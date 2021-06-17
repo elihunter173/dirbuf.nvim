@@ -50,9 +50,10 @@ function FState:hash()
 end
 
 -- Directories have to be executable for you to chdir into them
+M.actions = {}
 local DEFAULT_FILE_MODE = tonumber("644", 8)
 local DEFAULT_DIR_MODE = tonumber("755", 8)
-function M.create(args)
+function M.actions.create(args)
   local fstate = args.fstate
 
   -- TODO: This is a TOCTOU
@@ -75,7 +76,7 @@ function M.create(args)
   end
 end
 
-function M.copy(args)
+function M.actions.copy(args)
   local old_fname, new_fname = args.old_fname, args.new_fname
   -- TODO: Support copying directories. Needs keeping around fstates
   local ok = uv.fs_copyfile(old_fname, new_fname, nil)
@@ -107,7 +108,7 @@ local function rm(fname, ftype)
   end
 end
 
-function M.delete(args)
+function M.actions.delete(args)
   local fstate = args.fstate
   local ok, err, _ = rm(fstate.fname, fstate.ftype)
   if not ok then
@@ -115,7 +116,7 @@ function M.delete(args)
   end
 end
 
-function M.move(args)
+function M.actions.move(args)
   local old_fname, new_fname = args.old_fname, args.new_fname
   -- TODO: This is a TOCTOU
   if uv.fs_access(new_fname, "W") then
