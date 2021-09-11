@@ -168,9 +168,6 @@ function M.init_dirbuf(buf)
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
   fill_dirbuf(buf)
-
-  api.nvim_buf_set_var(buf, "dirbuf_old_dir", uv.cwd())
-  api.nvim_set_current_dir(dir)
 end
 
 function M.open(dir)
@@ -188,19 +185,6 @@ function M.open(dir)
     api.nvim_buf_set_name(buf, dir)
   end
 
-  -- We must first change buffers before we save the old directory and switch
-  -- directories. That is because we use BufLeave to reset the current
-  -- directory and we don't want to change the saved current directory when we
-  -- go deeper into dirbufs. We cannot use api.nvim_win_set_buf(0, buf) because
-  -- that doesn't trigger autocmds.
-
-  -- We rely on the autocmd to init the dirbuf.
-  -- XXX: This doesn't work because of https://github.com/neovim/neovim/issues/13711
-  -- vim.cmd("buffer " .. buf)
-
-  -- HACK: To work around the BufEnter error swallowing, we emulate :buffer as
-  -- best we can.
-  vim.cmd("doautocmd BufLeave")
   api.nvim_win_set_buf(0, buf)
   M.init_dirbuf(buf)
 end
@@ -210,11 +194,14 @@ function M.enter()
     error("dirbuf must be saved first")
   end
 
+  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local line = api.nvim_get_current_line()
   local _, hash = parse_line(line)
   local fstate = vim.b.dirbuf[hash]
   -- We rely on the autocmd to open directories
-  vim.cmd("silent edit " .. vim.fn.fnameescape(fstate.fname))
+  -- TODO: There's a better way to join the directory
+  local fname_entering = vim.fn.fnamemodify(dir .. "/" .. fstate.fname, ":.")
+  vim.cmd("silent edit " .. vim.fn.fnameescape(fname_entering))
 end
 
 function M.sync()
