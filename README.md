@@ -9,7 +9,7 @@ Here is a quick list of features implemented.
   * [x] Dirbuf refreshing after changes.
   * [x] Opening directories.
   * [x] Opening files.
-  * [ ] Hiding hidden files.
+  * [x] Hiding hidden files.
   * [ ] Previewing files.
   * [ ] Subdirectories as "folds".
 * Directory Modification:

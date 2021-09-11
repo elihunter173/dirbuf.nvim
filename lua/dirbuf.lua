@@ -20,6 +20,8 @@ end
 -- regular expression. However, Lua doesn't have a proper regex engine, just
 -- simpler patterns. These patterns can't parse dirbuf lines (b/c of escaping),
 -- so I manually build the parser. It also gives nicer error messages.
+--
+-- Returns dispname, hash
 local function parse_line(line)
   local string_builder = {}
   -- We store this in a local so we can skip characters
@@ -46,14 +48,14 @@ local function parse_line(line)
       table.insert(string_builder, c)
     end
   end
-  local fname = table.concat(string_builder)
+  local dispname = table.concat(string_builder)
 
   -- Skip to hash
   while true do
     local c = chars()
     if c == nil then
       -- Ended line before hash
-      return fname, nil
+      return dispname, nil
     elseif c == "#" then
       break
     elseif not c:match("%s") then
@@ -80,7 +82,7 @@ local function parse_line(line)
     errorf("extra character '%s'", c)
   end
 
-  return fname, hash
+  return dispname, hash
 end
 
 -- fill_dirbuf fills buffer `buf` with the contents of its corresponding
@@ -99,17 +101,24 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
   end
 
   local dir = api.nvim_buf_get_name(buf)
+  local hide_hidden = api.nvim_buf_get_var(buf, "dirbuf_hide_hidden")
 
   -- Used to preserve the ordering of lines. Each line is guaranteed to be used
   -- exactly once assuming the buffer contains no non-existent fnames.
   local dispname_lnums = {}
+  local tail = #dispname_lnums + 1
   if preserve_order then
-    for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
-      local dispname, _ = parse_line(line)
-      dispname_lnums[dispname] = lnum
+    for _, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
+      local fname, _ = parse_line(line)
+      if hide_hidden and fname:sub(1, 1) == "." then
+        goto continue
+      end
+      dispname_lnums[fname] = tail
+      tail = tail + 1
+
+      ::continue::
     end
   end
-  local tail = #dispname_lnums + 1
 
   local move_cursor_to = nil
 
@@ -130,6 +139,9 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
     local fname, ftype = uv.fs_scandir_next(handle)
     if fname == nil then
       break
+    end
+    if hide_hidden and fname:sub(1, 1) == "." then
+      goto continue
     end
 
     local fstate = FState.new(fname, ftype)
@@ -154,6 +166,8 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
     if fstate.fname == on_fname then
       move_cursor_to = lnum
     end
+
+    ::continue::
   end
   -- Now fill in the padding in the (fname_esc, padding, hash) tuples with
   -- appropriate padding such that the hashes line up
@@ -190,6 +204,12 @@ function M.init_dirbuf(buf, preserve_order, on_fname)
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
+
+  -- TODO: Make the default mode configurable
+  local ok, _ = pcall(api.nvim_buf_get_var, "dirbuf_hide_hidden")
+  if not ok then
+    api.nvim_buf_set_var(buf, "dirbuf_hide_hidden", false)
+  end
 
   fill_dirbuf(buf, preserve_order, on_fname)
 end
@@ -275,6 +295,16 @@ function M.sync()
   planner.execute_plan(plan)
 
   fill_dirbuf(CURRENT_BUFFER, true)
+end
+
+function M.toggle_hide()
+  vim.b.dirbuf_hide_hidden = not vim.b.dirbuf_hide_hidden
+  -- We want to ensure that we are still hovering on the same line
+  local dispname, _ = parse_line(vim.fn.getline("."))
+  -- TODO: Should I have a function to do this directly?
+  local fname = FState.from_dispname(dispname).fname
+  -- TODO: Is it intuitive to have keep your cursor on the fname?
+  fill_dirbuf(CURRENT_BUFFER, false, fname)
 end
 
 function M.test()
