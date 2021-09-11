@@ -83,17 +83,35 @@ local function parse_line(line)
   return fname, hash
 end
 
-local function fill_dirbuf(buf)
+-- fill_dirbuf fills buffer `buf` with the contents of its corresponding
+-- directory. `buf` must have the name of a valid directory and its contents
+-- must be a valid dirbuf.
+--
+-- If `preserve_order` is true, then the contents of `buf` are left untouched,
+-- only deleting old lines and appending new lines to the end. `preserve_order`
+-- defaults to false.
+--
+-- If `on_fname` is set, then the cursor will be put on the line corresponding
+-- to `on_fname`.
+local function fill_dirbuf(buf, preserve_order, on_fname)
+  if preserve_order == nil then
+    preserve_order = false
+  end
+
   local dir = api.nvim_buf_get_name(buf)
 
   -- Used to preserve the ordering of lines. Each line is guaranteed to be used
   -- exactly once assuming the buffer contains no non-existent fnames.
   local dispname_lnums = {}
-  for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
-    local dispname, _ = parse_line(line)
-    dispname_lnums[dispname] = lnum
+  if preserve_order then
+    for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
+      local dispname, _ = parse_line(line)
+      dispname_lnums[dispname] = lnum
+    end
   end
   local tail = #dispname_lnums + 1
+
+  local move_cursor_to = nil
 
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
@@ -132,6 +150,10 @@ local function fill_dirbuf(buf)
       tail = tail + 1
     end
     buf_lines[lnum] = {dispname_esc, nil, "  #" .. hash}
+
+    if fstate.fname == on_fname then
+      move_cursor_to = lnum
+    end
   end
   -- Now fill in the padding in the (fname_esc, padding, hash) tuples with
   -- appropriate padding such that the hashes line up
@@ -141,6 +163,10 @@ local function fill_dirbuf(buf)
   end
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
   api.nvim_buf_set_var(buf, "dirbuf", fstates)
+
+  if move_cursor_to ~= nil then
+    api.nvim_win_set_cursor(0, {move_cursor_to, 0})
+  end
 
   -- Us filling the buffer counts as modifying it
   api.nvim_buf_set_option(buf, "modified", false)
@@ -157,9 +183,7 @@ local function clean_path(path)
 end
 
 -- This buffer must be the currently focused buffer
-function M.init_dirbuf(buf)
-  -- TODO: Should I stop with init_dirbuf if the buf already has `b:dirbuf`
-  -- defined?
+function M.init_dirbuf(buf, preserve_order, on_fname)
   local dir = clean_path(api.nvim_buf_get_name(buf))
   api.nvim_buf_set_name(buf, dir)
 
@@ -167,7 +191,7 @@ function M.init_dirbuf(buf)
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
-  fill_dirbuf(buf)
+  fill_dirbuf(buf, preserve_order, on_fname)
 end
 
 function M.open(dir)
@@ -175,6 +199,16 @@ function M.open(dir)
     dir = "."
   end
   dir = clean_path(dir)
+
+  -- XXX: This is really hard to understand. What I want is to get the current
+  -- buffer's name and get the basepath of it. Ideally, expand("%:t") would
+  -- work but if you are in a directory (ends with a /), then it returns
+  -- nothing. Therefore, we have to do a hack to get the directory by looking
+  -- at the parent, stripping the slash, and then getting the tail.
+  local old_fname = vim.fn.expand("%:t")
+  if old_fname == "" then
+    old_fname = vim.fn.expand("%:p:h:t")
+  end
 
   local buf = vim.fn.bufnr("^" .. dir .. "$")
   if buf == -1 then
@@ -186,7 +220,7 @@ function M.open(dir)
   end
 
   api.nvim_win_set_buf(0, buf)
-  M.init_dirbuf(buf)
+  M.init_dirbuf(buf, false, old_fname)
 end
 
 function M.enter()
@@ -240,7 +274,7 @@ function M.sync()
   local plan = planner.determine_plan(fstates, transition_graph)
   planner.execute_plan(plan)
 
-  fill_dirbuf(CURRENT_BUFFER)
+  fill_dirbuf(CURRENT_BUFFER, true)
 end
 
 function M.test()
