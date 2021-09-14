@@ -1,9 +1,25 @@
 local uv = vim.loop
 
 local errorf = require("dirbuf.utils").errorf
-local md5 = require("dirbuf.md5")
 
 local M = {}
+
+local FNV_PRIME = 16777619
+local FNV_OFFSET_BASIS = 2166136261
+
+-- We use 4 byte hashes
+M.HASH_LEN = 8
+local HASH_MAX = 256 * 256 * 256 * 256
+
+-- 32 bit FNV-1a hash that is cut to the least significant 3 bytes.
+local function hash(str)
+  local h = FNV_OFFSET_BASIS
+  for c in str:gmatch(".") do
+    h = bit.bxor(h, c:byte())
+    h = h * FNV_PRIME
+  end
+  return string.format("%08x", h % HASH_MAX)
+end
 
 M.FState = {}
 local FState = M.FState
@@ -44,9 +60,8 @@ function FState:dispname()
   end
 end
 
-M.HASH_LEN = 7
 function FState:hash()
-  return md5.sumhexa(self.fname):sub(1, M.HASH_LEN)
+  return hash(self.fname)
 end
 
 -- Directories have to be executable for you to chdir into them

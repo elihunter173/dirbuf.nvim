@@ -10,5 +10,5 @@ hi link DirbufLink String
 " TODO: Highlight malformed lines?
 
 " TODO: Tolerate trailing whitespace? Also need to update dirbuf.parse_line
-syn match DirbufHash /\s#\x\{7}$/
+syn match DirbufHash /\s#\x\{8}$/
 hi link DirbufHash Special
