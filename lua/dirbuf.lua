@@ -12,6 +12,8 @@ local CURRENT_BUFFER = 0
 
 -- TODO: Handle tabs in the string appropriately
 
+-- TODO: Maybe move this to fs.lua?
+-- TODO: Test filenames with escaped slashes in them
 local function dispname_escape(dispname)
   return dispname:gsub("[ \\]", "\\%0")
 end

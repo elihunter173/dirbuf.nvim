@@ -30,6 +30,10 @@ function FState.new(fname, ftype)
   return o
 end
 
+-- TODO: Do all classifiers from here
+-- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
+-- with types from
+-- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
 function FState.from_dispname(dispname)
   -- This is the last byte as a string, which is okay because all our
   -- identifiers are single characters
@@ -38,22 +42,26 @@ function FState.from_dispname(dispname)
     return FState.new(dispname:sub(0, -2), "directory")
   elseif last_char == "@" then
     return FState.new(dispname:sub(0, -2), "link")
+  elseif last_char == "=" then
+    return FState.new(dispname:sub(0, -2), "socket")
+  elseif last_char == "|" then
+    return FState.new(dispname:sub(0, -2), "fifo")
   else
     return FState.new(dispname, "file")
   end
 end
 
 function FState:dispname()
-  -- TODO: Do all classifiers from here
-  -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
-  -- with types from
-  -- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
   if self.ftype == "file" then
     return self.fname
   elseif self.ftype == "directory" then
     return self.fname .. "/"
   elseif self.ftype == "link" then
     return self.fname .. "@"
+  elseif self.ftype == "socket" then
+    return self.fname .. "="
+  elseif self.ftype == "fifo" then
+    return self.fname .. "|"
   else
     -- Should I just assume it's a file??
     errorf("unrecognized ftype %s", vim.inspect(self.ftype))
