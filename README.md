@@ -20,10 +20,10 @@ Here is a quick list of features implemented.
   * [x] Creating new files.
   * [ ] Order dependent changes (e.g. renaming `a -> b` and `b -> c`).
   * [ ] Circular renaming.
-  * [ ] Concurrent action execution.
+  * [ ] Concurrent modification execution.
 * Misc:
   * [x] An easy way to refresh dirbufs.
-  * [ ] Useful errors messages.
+  * [ ] Cleaner errors messages.
   * [ ] Docs.
 
 # dirbuf.nvim
