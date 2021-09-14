@@ -7,7 +7,8 @@ local M = {}
 -- necessary to reach the desired state.
 --
 -- fstates: Map from FState hash to current FState of file.
--- new_state: Map from FState hash to list of new associated FStates.
+-- new_state: Map from FState hash to list of new associated FStates. Empty
+-- hash means new lit
 function M.determine_plan(fstates, changes)
   local plan = {}
 
@@ -23,14 +24,16 @@ function M.determine_plan(fstates, changes)
       table.insert(plan, {type = "delete", fstate = fstates[hash]})
 
     else
-      -- We just use fname because we can move across
-      local current_fname = fstates[hash].fname
-      -- Try to find the current fname in the list of new_fnames. If it's
-      -- there, then we can do nothing. If it's not there, then we copy the
-      -- file n - 1 times and then move for the last file.
+      -- Graph goes 1 to many places
+
+      local current_path = fstates[hash].path
+      -- Try to find the current path in the list of destinaton fstates
+      -- (dst_fstates). If it's there, then we can do nothing. If it's not
+      -- there, then we copy the file n - 1 times and then move for the last
+      -- file.
       local one_unchanged = false
       for _, dst_fstate in ipairs(dst_fstates) do
-        if current_fname == dst_fstate.fname then
+        if current_path == dst_fstate.path then
           one_unchanged = true
           break
         end
@@ -38,16 +41,17 @@ function M.determine_plan(fstates, changes)
 
       if one_unchanged then
         for _, dst_fstate in ipairs(dst_fstates) do
-          if current_fname ~= dst_fstate.fname then
+          if current_path ~= dst_fstate.path then
             table.insert(plan, {
               type = "copy",
-              old_fname = current_fname,
-              new_fname = dst_fstate.fname,
+              old_path = current_path,
+              new_path = dst_fstate.path,
             })
           end
         end
 
       else
+        -- All names have changed
         local first = true
         local move_to
         for _, dst_fstate in ipairs(dst_fstates) do
@@ -58,15 +62,15 @@ function M.determine_plan(fstates, changes)
           else
             table.insert(plan, {
               type = "copy",
-              old_fname = current_fname,
-              new_fname = dst_fstate.fname,
+              old_path = current_path,
+              new_path = dst_fstate.path,
             })
           end
         end
         table.insert(plan, {
           type = "move",
-          old_fname = current_fname,
-          new_fname = move_to.fname,
+          old_path = current_path,
+          new_path = move_to.path,
         })
       end
     end

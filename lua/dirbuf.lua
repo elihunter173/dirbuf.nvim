@@ -146,7 +146,7 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
       goto continue
     end
 
-    local fstate = FState.new(fname, ftype)
+    local fstate = FState.new(fname, dir, ftype)
     local hash = fstate:hash()
     if fstates[hash] ~= nil then
       errorf("colliding hashes '%s'", hash)
@@ -255,14 +255,14 @@ function M.enter()
   local _, hash = parse_line(line)
   local fstate = vim.b.dirbuf[hash]
   -- We rely on the autocmd to open directories
-  -- TODO: There's a better way to join the directory
-  vim.cmd("silent edit " .. vim.fn.fnameescape(dir .. "/" .. fstate.fname))
+  vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join(dir, fstate.fname)))
 end
 
 function M.sync()
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
   local fstates = vim.b.dirbuf
+  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
 
   -- Map from hash to fnames associated with that hash
   local transition_graph = {}
@@ -273,15 +273,16 @@ function M.sync()
 
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
-  for _, line in ipairs(api.nvim_buf_get_lines(0, 0, -1, true)) do
+  for lnum, line in ipairs(api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)) do
     local dispname, hash = parse_line(line)
-    local new_fstate = FState.from_dispname(dispname)
+    local new_fstate = FState.from_dispname(dispname, dir)
 
     if used_fnames[new_fstate.fname] ~= nil then
-      errorf("duplicate name '%s'", dispname)
+      errorf("line %d: duplicate name '%s'", lnum, dispname)
     end
     if hash ~= nil and fstates[hash].ftype ~= new_fstate.ftype then
-      error("cannot change ftype")
+      errorf("line %d: cannot change ftype %s -> %s", lnum, fstates[hash].ftype,
+             new_fstate.ftype)
     end
 
     if hash == nil then
