@@ -256,8 +256,7 @@ function M.enter()
   local fstate = vim.b.dirbuf[hash]
   -- We rely on the autocmd to open directories
   -- TODO: There's a better way to join the directory
-  local fname_entering = vim.fn.fnamemodify(dir .. "/" .. fstate.fname, ":.")
-  vim.cmd("silent edit " .. vim.fn.fnameescape(fname_entering))
+  vim.cmd("silent edit " .. vim.fn.fnameescape(dir .. "/" .. fstate.fname))
 end
 
 function M.sync()
