@@ -11,7 +11,7 @@ local FNV_OFFSET_BASIS = 2166136261
 M.HASH_LEN = 8
 local HASH_MAX = 256 * 256 * 256 * 256
 
--- 32 bit FNV-1a hash that is cut to the least significant 3 bytes.
+-- 32 bit FNV-1a hash that is cut to the least significant 4 bytes.
 local function hash(str)
   local h = FNV_OFFSET_BASIS
   for c in str:gmatch(".") do
@@ -21,12 +21,16 @@ local function hash(str)
   return string.format("%08x", h % HASH_MAX)
 end
 
+function M.join(...)
+  local paths = {...}
+  return table.concat(paths, "/")
+end
+
 M.FState = {}
 local FState = M.FState
 
 function FState.new(fname, parent, ftype)
-  -- TODO: We should do actual path joining
-  local o = {fname = fname, path = parent .. "/" .. fname, ftype = ftype}
+  local o = {fname = fname, path = M.join(parent, fname), ftype = ftype}
   setmetatable(o, {__index = FState})
   return o
 end
@@ -73,15 +77,10 @@ function FState:hash()
   return hash(self.path)
 end
 
-function M.join(...)
-  local paths = {...}
-  return table.concat(paths, "/")
-end
-
--- Directories have to be executable for you to chdir into them
 M.actions = {}
 
 local DEFAULT_FILE_MODE = tonumber("644", 8)
+-- Directories have to be executable for you to chdir into them
 local DEFAULT_DIR_MODE = tonumber("755", 8)
 function M.actions.create(args)
   local fstate = args.fstate

@@ -89,7 +89,9 @@ function M.execute_plan(plan)
 end
 
 function M.test()
-  local fst = fs.FState.from_dispname
+  local function fst(dispname)
+    return fs.FState.from_dispname(dispname, "")
+  end
 
   describe("determine_plan", function()
     it("no changes", function()
@@ -101,7 +103,7 @@ function M.test()
     it("rename one", function()
       local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {fst("c")}, b = {fst("b")}}
-      local correct_plan = {{type = "move", old_fname = "a", new_fname = "c"}}
+      local correct_plan = {{type = "move", old_path = "/a", new_path = "/c"}}
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
 
@@ -115,7 +117,7 @@ function M.test()
     it("copy one", function()
       local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {fst("a"), fst("c")}, b = {fst("b")}}
-      local correct_plan = {{type = "copy", old_fname = "a", new_fname = "c"}}
+      local correct_plan = {{type = "copy", old_path = "/a", new_path = "/c"}}
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
 
@@ -123,8 +125,8 @@ function M.test()
       local identities = {a = fst("a"), b = fst("b")}
       local changes = {a = {fst("b")}, b = {fst("c")}}
       local correct_plan = {
-        {type = "move", old_fname = "b", new_fname = "c"},
-        {type = "move", old_fname = "a", new_fname = "b"},
+        {type = "move", old_path = "/b", new_path = "/c"},
+        {type = "move", old_path = "/a", new_path = "/b"},
       }
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
@@ -133,10 +135,10 @@ function M.test()
       local identities = {a = fst("a"), b = fst("b"), c = fst("c")}
       local changes = {a = {fst("b"), fst("d")}, b = {fst("c")}, c = {fst("a")}}
       local correct_plan = {
-        {type = "move", old_fname = "a", new_fname = "d"},
-        {type = "move", old_fname = "c", new_fname = "a"},
-        {type = "move", old_fname = "b", new_fname = "c"},
-        {type = "copy", old_fname = "d", new_fname = "c"},
+        {type = "move", old_path = "/a", new_path = "/d"},
+        {type = "move", old_path = "/c", new_path = "/a"},
+        {type = "move", old_path = "/b", new_path = "/c"},
+        {type = "copy", old_path = "/d", new_path = "/c"},
       }
       assert.same(correct_plan, M.determine_plan(identities, changes))
     end)
