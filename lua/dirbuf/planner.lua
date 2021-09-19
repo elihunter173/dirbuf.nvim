@@ -1,6 +1,51 @@
+local api = vim.api
+
+local errorf = require("dirbuf.utils").errorf
+local parse_line = require("dirbuf.parser").parse_line
 local fs = require("dirbuf.fs")
+local FState = fs.FState
 
 local M = {}
+
+local CURRENT_BUFFER = 0
+
+-- TODO: Make this so it just works off of a previous dirbuf and a new lines?
+function M.build_changes(buf)
+  -- Parse the dirbuf into
+  local fstates = api.nvim_buf_get_var(buf, "dirbuf")
+  local dir = api.nvim_buf_get_name(buf)
+
+  -- Map from hash to fnames associated with that hash
+  local transition_graph = {}
+  transition_graph[""] = {}
+  for hash, _ in pairs(fstates) do
+    transition_graph[hash] = {}
+  end
+
+  -- Just to ensure we don't reuse fnames
+  local used_fnames = {}
+  for lnum, line in ipairs(api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)) do
+    local dispname, hash = parse_line(line)
+    local new_fstate = FState.from_dispname(dispname, dir)
+
+    if used_fnames[new_fstate.fname] ~= nil then
+      errorf("line %d: duplicate name '%s'", lnum, dispname)
+    end
+    if hash ~= nil and fstates[hash].ftype ~= new_fstate.ftype then
+      errorf("line %d: cannot change ftype %s -> %s", lnum, fstates[hash].ftype,
+             new_fstate.ftype)
+    end
+
+    if hash == nil then
+      table.insert(transition_graph[""], new_fstate)
+    else
+      table.insert(transition_graph[hash], new_fstate)
+    end
+    used_fnames[new_fstate.fname] = true
+  end
+
+  return fstates, transition_graph
+end
 
 -- Given the current state of the directory, `changes`, and a map describing
 -- the changes, `changes`, determine the most efficient series of actions
