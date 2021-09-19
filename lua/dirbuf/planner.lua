@@ -1,6 +1,5 @@
 local api = vim.api
 
-local errorf = require("dirbuf.utils").errorf
 local parse_line = require("dirbuf.parser").parse_line
 local fs = require("dirbuf.fs")
 local FState = fs.FState
@@ -25,15 +24,18 @@ function M.build_changes(buf)
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
   for lnum, line in ipairs(api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)) do
-    local dispname, hash = parse_line(line)
+    local err, dispname, hash = parse_line(line)
+    if err ~= nil then
+      return string.format("line %d: %s", dir, lnum, err)
+    end
     local new_fstate = FState.from_dispname(dispname, dir)
 
     if used_fnames[new_fstate.fname] ~= nil then
-      errorf("line %d: duplicate name '%s'", lnum, dispname)
+      return string.format("line %d: duplicate name '%s'", lnum, dispname)
     end
     if hash ~= nil and fstates[hash].ftype ~= new_fstate.ftype then
-      errorf("line %d: cannot change ftype %s -> %s", lnum, fstates[hash].ftype,
-             new_fstate.ftype)
+      return string.format("line %d: cannot change ftype %s -> %s", lnum,
+                           fstates[hash].ftype, new_fstate.ftype)
     end
 
     if hash == nil then
@@ -44,7 +46,7 @@ function M.build_changes(buf)
     used_fnames[new_fstate.fname] = true
   end
 
-  return fstates, transition_graph
+  return nil, fstates, transition_graph
 end
 
 -- Given the current state of the directory, `changes`, and a map describing
@@ -129,8 +131,12 @@ function M.execute_plan(plan)
   -- TODO: Check that all actions are valid before taking any action?
   -- determine_plan should only generate valid plans
   for _, action in ipairs(plan) do
-    fs.actions[action.type](action)
+    local err = fs.actions[action.type](action)
+    if err ~= nil then
+      return err
+    end
   end
+  return nil
 end
 
 function M.test()

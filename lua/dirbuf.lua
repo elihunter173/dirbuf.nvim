@@ -1,7 +1,6 @@
 local api = vim.api
 local uv = vim.loop
 
-local errorf = require("dirbuf.utils").errorf
 local parse_line = require("dirbuf.parser").parse_line
 local planner = require("dirbuf.planner")
 local fs = require("dirbuf.fs")
@@ -21,6 +20,8 @@ local CURRENT_BUFFER = 0
 --
 -- If `on_fname` is set, then the cursor will be put on the line corresponding
 -- to `on_fname`.
+--
+-- Returns: err
 local function fill_dirbuf(buf, preserve_order, on_fname)
   if preserve_order == nil then
     preserve_order = false
@@ -34,8 +35,11 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
   local dispname_lnums = {}
   local tail = #dispname_lnums + 1
   if preserve_order then
-    for _, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
-      local fname, _ = parse_line(line)
+    for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
+      local err, fname, _ = parse_line(line)
+      if err ~= nil then
+        return string.format("line %d: %s", lnum, err)
+      end
       if hide_hidden and fname:sub(1, 1) == "." then
         goto continue
       end
@@ -50,7 +54,7 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
 
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
-    error(err)
+    return err
   end
   -- Fill out buffer
   -- Stores file info by hash
@@ -73,7 +77,8 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
     local fstate = FState.new(fname, dir, ftype)
     local hash = fstate:hash()
     if fstates[hash] ~= nil then
-      errorf("colliding hashes '%s'", hash)
+      -- This should never happen
+      error(string.format("colliding hashes '%s'", hash))
     end
     fstates[hash] = fstate
 
@@ -112,6 +117,8 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
 
   -- Us filling the buffer counts as modifying it
   api.nvim_buf_set_option(buf, "modified", false)
+
+  return nil
 end
 
 local function clean_path(path)
@@ -162,7 +169,8 @@ function M.open(dir)
   if buf == -1 then
     buf = api.nvim_create_buf(true, false)
     if buf == 0 then
-      error("failed to create buffer")
+      api.nvim_err_writeln("failed to create buffer")
+      return
     end
     api.nvim_buf_set_name(buf, dir)
   end
@@ -173,12 +181,17 @@ end
 
 function M.enter()
   if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
-    error("dirbuf must be saved first")
+    api.nvim_err_writeln("dirbuf must be saved first")
+    return
   end
 
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local line = api.nvim_get_current_line()
-  local _, hash = parse_line(line)
+  local err, _, hash = parse_line(line)
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
+  end
   local fstate = vim.b.dirbuf[hash]
   -- We rely on the autocmd to open directories
   vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join(dir, fstate.fname)))
@@ -187,9 +200,17 @@ end
 function M.sync()
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
-  local fstates, transition_graph = planner.build_changes(CURRENT_BUFFER)
+  local err, fstates, transition_graph = planner.build_changes(CURRENT_BUFFER)
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
+  end
   local plan = planner.determine_plan(fstates, transition_graph)
-  planner.execute_plan(plan)
+  err = planner.execute_plan(plan)
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
+  end
   fill_dirbuf(CURRENT_BUFFER, true)
 end
 
@@ -197,7 +218,11 @@ function M.toggle_hide()
   vim.b.dirbuf_hide_hidden = not vim.b.dirbuf_hide_hidden
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   -- We want to ensure that we are still hovering on the same line
-  local dispname, _ = parse_line(vim.fn.getline("."))
+  local err, dispname, _ = parse_line(vim.fn.getline("."))
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
+  end
   -- TODO: Should I have a function to do this directly? Probably because this
   -- a bit hacky
   local fname = FState.from_dispname(dispname, dir).fname

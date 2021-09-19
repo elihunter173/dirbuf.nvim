@@ -17,8 +17,6 @@ endif
 augroup dirbuf
   autocmd!
   " Makes editing a directory open a dirbuf
-  " TODO: For some reason `:edit .` on an already loaded dirbuf removes the
-  " content
   autocmd BufEnter * if isdirectory(expand('<afile>'))
         \ | execute 'lua require"dirbuf".init_dirbuf(vim.fn.expand("<abuf>"))'
         \ | endif

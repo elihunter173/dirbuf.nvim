@@ -1,7 +1,5 @@
 local uv = vim.loop
 
-local errorf = require("dirbuf.utils").errorf
-
 local M = {}
 
 local FNV_PRIME = 16777619
@@ -69,7 +67,8 @@ function FState:dispname()
     return self.fname .. "|"
   else
     -- Should I just assume it's a file??
-    errorf("unrecognized ftype %s", vim.inspect(self.ftype))
+    error(string.format("unrecognized ftype %s. This should be impossible",
+                        vim.inspect(self.ftype)))
   end
 end
 
@@ -87,7 +86,7 @@ function M.actions.create(args)
 
   -- TODO: This is a TOCTOU
   if uv.fs_access(fstate.path, "W") then
-    errorf("%s at '%s' already exists", fstate.ftype, fstate.path)
+    return string.format("%s at '%s' already exists", fstate.ftype, fstate.path)
   end
 
   local ok
@@ -97,12 +96,14 @@ function M.actions.create(args)
   elseif fstate.ftype == "directory" then
     ok = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
   else
-    errorf("unsupported ftype: %s", fstate.ftype)
+    return string.format("unsupported ftype: %s", fstate.ftype)
   end
 
   if not ok then
-    errorf("create failed: %s", fstate.path)
+    return string.format("create failed: %s", fstate.path)
   end
+
+  return nil
 end
 
 function M.actions.copy(args)
@@ -110,14 +111,20 @@ function M.actions.copy(args)
   -- TODO: Support copying directories. Needs keeping around fstates
   local ok = uv.fs_copyfile(old_path, new_path, nil)
   if not ok then
-    errorf("copy failed: %s -> %s", old_path, new_path)
+    return string.format("copy failed: %s -> %s", old_path, new_path)
   end
+
+  return nil
 end
 
--- TODO: Use err instead of return
 local function rm(path, ftype)
   if ftype == "file" or ftype == "symlink" then
-    return uv.fs_unlink(path)
+    local ok, err, _ = uv.fs_unlink(path)
+    if ok then
+      return nil
+    else
+      return err
+    end
 
   elseif ftype == "directory" then
     local handle = uv.fs_scandir(path)
@@ -126,35 +133,37 @@ local function rm(path, ftype)
       if next_fname == nil then
         break
       end
-      local ok, err, name = rm(M.join(path, next_fname), next_ftype)
-      if not ok then
-        return ok, err, name
+      local err = rm(M.join(path, next_fname), next_ftype)
+      if err ~= nil then
+        return err
       end
     end
-    return uv.fs_rmdir(path)
+    local ok, err, _ = uv.fs_rmdir(path)
+    if ok then
+      return nil
+    else
+      return err
+    end
 
   else
-    return false, "unrecognized ftype", "dirbuf_internal"
+    return "unrecognized ftype"
   end
 end
 
 function M.actions.delete(args)
   local fstate = args.fstate
-  local ok, err, _ = rm(fstate.path, fstate.ftype)
-  if not ok then
-    errorf("delete failed: %s", err)
-  end
+  return rm(fstate.path, fstate.ftype)
 end
 
 function M.actions.move(args)
   local old_path, new_path = args.old_path, args.new_path
   -- TODO: This is a TOCTOU
   if uv.fs_access(new_path, "W") then
-    errorf("file at '%s' already exists", new_path)
+    return string.format("file at '%s' already exists", new_path)
   end
-  local ok = uv.fs_rename(old_path, new_path)
+  local ok, err, _ = uv.fs_rename(old_path, new_path)
   if not ok then
-    errorf("move failed: %s -> %s", old_path, new_path)
+    return string.format("move failed: %s -> %s: %s", old_path, new_path, err)
   end
 end
 

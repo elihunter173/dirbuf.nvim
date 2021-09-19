@@ -23,7 +23,7 @@ Here is a quick list of features implemented.
   * [ ] Concurrent modification execution.
 * Misc:
   * [x] An easy way to refresh dirbufs.
-  * [ ] Cleaner errors messages.
+  * [x] Cleaner errors messages.
   * [ ] Docs.
 
 # dirbuf.nvim
