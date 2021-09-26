@@ -28,7 +28,7 @@ Here is a quick list of features implemented.
 
 # dirbuf.nvim
 
-A directory buffer for Neovim, inspired by dirvish.vim and vidir.
+A directory buffer for Neovim, inspired by [dirvish.vim] and [vidir].
 
 ## Development
 
@@ -38,5 +38,9 @@ Run the following command to run the tests.
 $ make test
 ```
 
-This will download plenary.vim's test harness and run the `*_spec.lua` tests in
+This will download [plenary.vim]'s test harness and run the `*_spec.lua` tests in
 `tests/`.
+
+[dirvish.vim]: https://github.com/justinmk/vim-dirvish
+[vidir]: https://github.com/trapd00r/vidir
+[plenary.vim]: https://github.com/nvim-lua/plenary.nvim
