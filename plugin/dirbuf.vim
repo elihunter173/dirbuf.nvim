@@ -14,6 +14,11 @@ if mapcheck('-', 'n') ==# '' && !hasmapto('<Plug>(dirbuf_up)', 'n')
   nmap - <Plug>(dirbuf_up)
 endif
 
+" Remove netrw directory handlers.
+if exists('#FileExplorer')
+  autocmd! FileExplorer
+endif
+
 augroup dirbuf
   autocmd!
   " Makes editing a directory open a dirbuf
