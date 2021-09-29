@@ -24,6 +24,10 @@ function M.join(...)
   return table.concat(paths, "/")
 end
 
+function M.temppath()
+  return vim.fn.tempname()
+end
+
 M.FState = {}
 local FState = M.FState
 
@@ -76,7 +80,15 @@ function FState:hash()
   return hash(self.path)
 end
 
+M.plan = {}
 M.actions = {}
+
+-- TODO: Create actions.{move, copy, create, delete} methods instead of relying
+-- on tables in planner
+
+function M.plan.create(fstate)
+  return {type = "create", fstate = fstate}
+end
 
 local DEFAULT_FILE_MODE = tonumber("644", 8)
 -- Directories have to be executable for you to chdir into them
@@ -91,7 +103,7 @@ function M.actions.create(args)
 
   local ok
   if fstate.ftype == "file" then
-    -- append instead of write to be non-destructive
+    -- append instead of write to be non-dstructive
     ok = uv.fs_open(fstate.path, "a", DEFAULT_FILE_MODE)
   elseif fstate.ftype == "directory" then
     ok = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
@@ -106,12 +118,16 @@ function M.actions.create(args)
   return nil
 end
 
+function M.plan.copy(src_path, dst_path)
+  return {type = "copy", src_path = src_path, dst_path = dst_path}
+end
+
 function M.actions.copy(args)
-  local old_path, new_path = args.old_path, args.new_path
+  local src_path, dst_path = args.src_path, args.dst_path
   -- TODO: Support copying directories. Needs keeping around fstates
-  local ok = uv.fs_copyfile(old_path, new_path, nil)
+  local ok = uv.fs_copyfile(src_path, dst_path, nil)
   if not ok then
-    return string.format("Copy failed for '%s' -> '%s'", old_path, new_path)
+    return string.format("Copy failed for '%s' -> '%s'", src_path, dst_path)
   end
 
   return nil
@@ -150,20 +166,28 @@ local function rm(path, ftype)
   end
 end
 
+function M.plan.delete(fstate)
+  return {type = "delete", fstate = fstate}
+end
+
 function M.actions.delete(args)
   local fstate = args.fstate
   return rm(fstate.path, fstate.ftype)
 end
 
+function M.plan.move(src_path, dst_path)
+  return {type = "move", src_path = src_path, dst_path = dst_path}
+end
+
 function M.actions.move(args)
-  local old_path, new_path = args.old_path, args.new_path
+  local src_path, dst_path = args.src_path, args.dst_path
   -- TODO: This is a TOCTOU
-  if uv.fs_access(new_path, "W") then
-    return string.format("File at '%s' already exists", new_path)
+  if uv.fs_access(dst_path, "W") then
+    return string.format("File at '%s' already exists", dst_path)
   end
-  local ok, err, _ = uv.fs_rename(old_path, new_path)
+  local ok, err, _ = uv.fs_rename(src_path, dst_path)
   if not ok then
-    return string.format("Move failed for %s -> %s: %s", old_path, new_path, err)
+    return string.format("Move failed for %s -> %s: %s", src_path, dst_path, err)
   end
 end
 

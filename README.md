@@ -18,8 +18,8 @@ Here is a quick list of features implemented.
     files, even if those files are moved.)
   * [x] Basic file renaming. (Same note as above.)
   * [x] Creating new files.
-  * [ ] Order dependent changes (e.g. renaming `a -> b` and `b -> c`).
-  * [ ] Circular renaming.
+  * [x] Order dependent changes (e.g. renaming `a -> b` and `b -> c`).
+  * [x] Circular renaming.
   * [ ] Concurrent modification execution.
 * Misc:
   * [x] An easy way to refresh dirbufs.

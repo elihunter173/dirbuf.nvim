@@ -142,7 +142,8 @@ function M.init_dirbuf(buf, preserve_order, on_fname)
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
   -- TODO: Make the default mode configurable
-  local ok, _ = pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_hide_hidden")
+  local ok, _ =
+      pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_hide_hidden")
   if not ok then
     api.nvim_buf_set_var(buf, "dirbuf_hide_hidden", false)
   end
@@ -240,13 +241,13 @@ function M.sync()
 
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
-  local fstates, transition_graph
-  err, fstates, transition_graph = planner.build_changes(CURRENT_BUFFER)
+  local changes
+  err, changes = planner.build_changes(CURRENT_BUFFER)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
   end
-  local plan = planner.determine_plan(fstates, transition_graph)
+  local plan = planner.determine_plan(changes)
   err = planner.execute_plan(plan)
   if err ~= nil then
     api.nvim_err_writeln("Error making changes: " .. err)
