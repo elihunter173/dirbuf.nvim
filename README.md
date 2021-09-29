@@ -24,7 +24,7 @@ Here is a quick list of features implemented.
 * Misc:
   * [x] An easy way to refresh dirbufs.
   * [x] Cleaner errors messages.
-  * [ ] Docs.
+  * [x] Docs.
 
 # dirbuf.nvim
 

@@ -1,5 +1,5 @@
-map <buffer><silent> <cr> <Plug>(dirbuf_enter)
-map <buffer><silent> gh <Plug>(dirbuf_toggle_hide)
+nnoremap <buffer><silent> <CR> <Cmd>execute 'lua require"dirbuf".enter()'<CR>
+nnoremap <buffer><silent> gh <Cmd>execute 'lua require"dirbuf".toggle_hide()'<CR>
 
 augroup dirbuf_local
   autocmd! * <buffer>

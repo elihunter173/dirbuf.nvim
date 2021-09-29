@@ -1,0 +1,72 @@
+*dirbuf.txt*	directory buffer
+
+==============================================================================
+OVERVIEW                                                              *dirbuf*
+
+Dirbuf provides Neovim with an editable directory buffer. This buffer is a
+regular text buffer with some metadata behind the scenes allowing you to
+leverage all of Neovim's built-in text editing capabilities to efficiently
+manipulate and edit file directories.
+
+To create a new file, add a new line containing the name of the file. To
+create an empty directory, add a "/" at the end.
+
+To delete a file or directory, delete its line.
+
+To copy a file, copy the file's line and give it a new name.
+
+To rename a file or directory, change its name in the directory buffer.
+
+When you save the buffer, Dirbuf applies the necessary filesystem operations
+to get the directory into the desired state. It does this by comparing the
+snapshot it took of the directory when the buffer was created to the state of
+the buffer upon saving. Using the hashes at the end of every line, Dirbuf can
+tell what objects are new (i.e. they do not have a hash) and what objects have
+changed (i.e. their hash does not match their name).
+
+Because each Dirbuf buffer name is the literal directory path, you can run any
+|:!| commands you want and prefix the filenames with |%|. For example, >
+  :!sed 's/hi/ahoy/g' %pirate_script.txt -i
+
+Dirbuf is designed to work with built-in Vim concepts as much as possible. Tim
+Pope's plugins demonstrate this theme; more plugins should too. Re-use of
+concepts multiplies the utility of those concepts; conversely if a plugin does
+not reuse a concept, both that concept and the new one are made mutually less
+valuable--the sum is less than the parts--because the user must learn or
+choose from two slightly different things instead of one augmented system.
+
+==============================================================================
+MAPPINGS                                                     *dirbuf-mappings*
+
+Global ~
+    <Plug>(dirbuf_up)
+    -               Opens the current file directory or the [count]th parent.
+
+Buffer-local (filetype=dirbuf) ~
+    -               Opens the [count]th parent directory.
+    <CR>            Opens file or directory at cursor.
+    gh              Toggles whether hidden files (i.e. "dot files") are
+                    displayed.
+
+==============================================================================
+COMMANDS                                                     *dirbuf-commands*
+
+:Dirbuf                                                       *dirbuf-:Dirbuf*
+    Opens the |current-directory|.
+
+:Dirbuf {path}
+    Opens the directory at {path}, or its parent if {path} is a file.
+    To open the directory of the current file: >
+        :Dirbuf %
+<
+
+==============================================================================
+CREDITS                                                       *dirbuf-credits*
+
+Dirbuf was initially conceived of as a Lua rewrite of the file manager plugin
+Dirvish and eventually grew in scope to become an editable directory buffer
+similiar to vidir. However, it still owes many of its ideas to Dirvish as well
+as much of its literal Vimscript and help documentation.
+
+==============================================================================
+ vim:tw=78:ts=4:et:ft=help:norl:
