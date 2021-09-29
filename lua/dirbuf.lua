@@ -142,7 +142,7 @@ function M.init_dirbuf(buf, preserve_order, on_fname)
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
   -- TODO: Make the default mode configurable
-  local ok, _ = pcall(api.nvim_buf_get_var, "dirbuf_hide_hidden")
+  local ok, _ = pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_hide_hidden")
   if not ok then
     api.nvim_buf_set_var(buf, "dirbuf_hide_hidden", false)
   end
