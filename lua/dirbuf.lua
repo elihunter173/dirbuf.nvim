@@ -197,10 +197,49 @@ function M.enter()
   vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join(dir, fstate.fname)))
 end
 
+-- Ensure that the directory has not changed since our last snapshot
+local function check_dirbuf(buf)
+  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
+  local handle, err, _ = uv.fs_scandir(dir)
+  if err ~= nil then
+    return err
+  end
+
+  local fstates = api.nvim_buf_get_var(buf, "dirbuf")
+  local hide_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_hide_hidden")
+  while true do
+    local fname, ftype = uv.fs_scandir_next(handle)
+    if fname == nil then
+      break
+    end
+    if hide_hidden and fname:sub(1, 1) == "." then
+      goto continue
+    end
+
+    -- TODO: Maybe I should have have a way to directly hash dir and fname?
+    local fstate = FState.new(fname, dir, ftype)
+    local snapshot = fstates[fstate:hash()]
+    if snapshot == nil or snapshot.fname ~= fname or snapshot.ftype ~= ftype then
+      return "snapshot out of date with current directory. Run :edit! to refresh"
+    end
+
+    ::continue::
+  end
+
+  return nil
+end
+
 function M.sync()
+  local err = check_dirbuf(CURRENT_BUFFER)
+  if err ~= nil then
+    api.nvim_err_writeln("cannot save dirbuf: " .. err)
+    return
+  end
+
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
-  local err, fstates, transition_graph = planner.build_changes(CURRENT_BUFFER)
+  local fstates, transition_graph
+  err, fstates, transition_graph = planner.build_changes(CURRENT_BUFFER)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
