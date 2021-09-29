@@ -26,15 +26,15 @@ function M.build_changes(buf)
   for lnum, line in ipairs(api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)) do
     local err, dispname, hash = parse_line(line)
     if err ~= nil then
-      return string.format("line %d: %s", dir, lnum, err)
+      return string.format("Line %d: %s", dir, lnum, err)
     end
     local new_fstate = FState.from_dispname(dispname, dir)
 
     if used_fnames[new_fstate.fname] ~= nil then
-      return string.format("line %d: duplicate name '%s'", lnum, dispname)
+      return string.format("Line %d: Duplicate name '%s'", lnum, dispname)
     end
     if hash ~= nil and fstates[hash].ftype ~= new_fstate.ftype then
-      return string.format("line %d: cannot change ftype %s -> %s", lnum,
+      return string.format("Line %d: Cannot change ftype %s -> %s", lnum,
                            fstates[hash].ftype, new_fstate.ftype)
     end
 

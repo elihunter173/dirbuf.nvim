@@ -30,9 +30,9 @@ function M.parse_line(line)
       if next_c == " " or next_c == "\\" then
         table.insert(string_builder, next_c)
       elseif next_c == nil then
-        return string.format("cannot escape end of line")
+        return "Cannot escape end of line"
       else
-        return string.format("invalid escape sequence '\\%s'", next_c)
+        return string.format("Invalid escape sequence '\\%s'", next_c)
       end
     else
       table.insert(string_builder, c)
@@ -49,7 +49,7 @@ function M.parse_line(line)
     elseif c == "#" then
       break
     elseif not c:match("%s") then
-      return string.format("unexpected character '%s'", c)
+      return string.format("Unexpected character '%s'", c)
     end
   end
 
@@ -58,9 +58,9 @@ function M.parse_line(line)
   for _ = 1, fs.HASH_LEN do
     local c = chars()
     if c == nil then
-      return "unexpected end of line in hash"
+      return "Unexpected end of line in hash"
     elseif not c:match("%x") then
-      return string.format("invalid hash character '%s'", c)
+      return string.format("Invalid hash character '%s'", c)
     else
       table.insert(string_builder, c)
     end
@@ -69,7 +69,7 @@ function M.parse_line(line)
 
   local c = chars()
   if c ~= nil then
-    return string.format("extra character '%s'", c)
+    return string.format("Extra character '%s'", c)
   end
 
   return nil, dispname, hash

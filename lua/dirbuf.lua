@@ -38,7 +38,7 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
     for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
       local err, fname, _ = parse_line(line)
       if err ~= nil then
-        return string.format("line %d: %s", lnum, err)
+        return string.format("Line %d: %s", lnum, err)
       end
       if hide_hidden and fname:sub(1, 1) == "." then
         goto continue
@@ -78,7 +78,8 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
     local hash = fstate:hash()
     if fstates[hash] ~= nil then
       -- This should never happen
-      error(string.format("colliding hashes '%s'", hash))
+      error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash,
+                          fstates[hash].fname, fname))
     end
     fstates[hash] = fstate
 
@@ -169,7 +170,7 @@ function M.open(dir)
   if buf == -1 then
     buf = api.nvim_create_buf(true, false)
     if buf == 0 then
-      api.nvim_err_writeln("failed to create buffer")
+      api.nvim_err_writeln("Failed to create buffer")
       return
     end
     api.nvim_buf_set_name(buf, dir)
@@ -181,7 +182,7 @@ end
 
 function M.enter()
   if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
-    api.nvim_err_writeln("dirbuf must be saved first")
+    api.nvim_err_writeln("Dirbuf must be saved first")
     return
   end
 
@@ -220,7 +221,8 @@ local function check_dirbuf(buf)
     local fstate = FState.new(fname, dir, ftype)
     local snapshot = fstates[fstate:hash()]
     if snapshot == nil or snapshot.fname ~= fname or snapshot.ftype ~= ftype then
-      return "snapshot out of date with current directory. Run :edit! to refresh"
+      return
+          "Snapshot out of date with current directory. Run :edit! to refresh"
     end
 
     ::continue::
@@ -232,7 +234,7 @@ end
 function M.sync()
   local err = check_dirbuf(CURRENT_BUFFER)
   if err ~= nil then
-    api.nvim_err_writeln("cannot save dirbuf: " .. err)
+    api.nvim_err_writeln("Cannot save dirbuf: " .. err)
     return
   end
 
@@ -247,7 +249,9 @@ function M.sync()
   local plan = planner.determine_plan(fstates, transition_graph)
   err = planner.execute_plan(plan)
   if err ~= nil then
-    api.nvim_err_writeln(err)
+    api.nvim_err_writeln("Error making changes: " .. err)
+    api.nvim_err_writeln(
+        "WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
     return
   end
   fill_dirbuf(CURRENT_BUFFER, true)

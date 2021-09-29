@@ -67,7 +67,7 @@ function FState:dispname()
     return self.fname .. "|"
   else
     -- Should I just assume it's a file??
-    error(string.format("unrecognized ftype %s. This should be impossible",
+    error(string.format("Unrecognized ftype '%s'. This should be impossible",
                         vim.inspect(self.ftype)))
   end
 end
@@ -86,7 +86,7 @@ function M.actions.create(args)
 
   -- TODO: This is a TOCTOU
   if uv.fs_access(fstate.path, "W") then
-    return string.format("%s at '%s' already exists", fstate.ftype, fstate.path)
+    return string.format("'%s' already exists", fstate.ftype, fstate.path)
   end
 
   local ok
@@ -96,11 +96,11 @@ function M.actions.create(args)
   elseif fstate.ftype == "directory" then
     ok = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
   else
-    return string.format("unsupported ftype: %s", fstate.ftype)
+    return string.format("Unsupported ftype: %s", fstate.ftype)
   end
 
   if not ok then
-    return string.format("create failed: %s", fstate.path)
+    return string.format("Create failed for '%s'", fstate.path)
   end
 
   return nil
@@ -111,7 +111,7 @@ function M.actions.copy(args)
   -- TODO: Support copying directories. Needs keeping around fstates
   local ok = uv.fs_copyfile(old_path, new_path, nil)
   if not ok then
-    return string.format("copy failed: %s -> %s", old_path, new_path)
+    return string.format("Copy failed for '%s' -> '%s'", old_path, new_path)
   end
 
   return nil
@@ -146,7 +146,7 @@ local function rm(path, ftype)
     end
 
   else
-    return "unrecognized ftype"
+    return "Unrecognized ftype"
   end
 end
 
@@ -159,11 +159,11 @@ function M.actions.move(args)
   local old_path, new_path = args.old_path, args.new_path
   -- TODO: This is a TOCTOU
   if uv.fs_access(new_path, "W") then
-    return string.format("file at '%s' already exists", new_path)
+    return string.format("File at '%s' already exists", new_path)
   end
   local ok, err, _ = uv.fs_rename(old_path, new_path)
   if not ok then
-    return string.format("move failed: %s -> %s: %s", old_path, new_path, err)
+    return string.format("Move failed for %s -> %s: %s", old_path, new_path, err)
   end
 end
 
