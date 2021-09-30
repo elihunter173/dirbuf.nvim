@@ -14,41 +14,13 @@ local CURRENT_BUFFER = 0
 -- directory. `buf` must have the name of a valid directory and its contents
 -- must be a valid dirbuf.
 --
--- If `preserve_order` is true, then the contents of `buf` are left untouched,
--- only deleting old lines and appending new lines to the end. `preserve_order`
--- defaults to false.
---
 -- If `on_fname` is set, then the cursor will be put on the line corresponding
 -- to `on_fname`.
 --
 -- Returns: err
-local function fill_dirbuf(buf, preserve_order, on_fname)
-  if preserve_order == nil then
-    preserve_order = false
-  end
-
+local function fill_dirbuf(buf, on_fname)
   local dir = api.nvim_buf_get_name(buf)
   local hide_hidden = api.nvim_buf_get_var(buf, "dirbuf_hide_hidden")
-
-  -- Used to preserve the ordering of lines. Each line is guaranteed to be used
-  -- exactly once assuming the buffer contains no non-existent fnames.
-  local dispname_lnums = {}
-  local tail = #dispname_lnums + 1
-  if preserve_order then
-    for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
-      local err, fname, _ = parse_line(line)
-      if err ~= nil then
-        return string.format("Line %d: %s", lnum, err)
-      end
-      if hide_hidden and fname:sub(1, 1) == "." then
-        goto continue
-      end
-      dispname_lnums[fname] = tail
-      tail = tail + 1
-
-      ::continue::
-    end
-  end
 
   local move_cursor_to = nil
 
@@ -56,6 +28,7 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
   if err ~= nil then
     return err
   end
+
   -- Fill out buffer
   -- Stores file info by hash
   local fstates = {}
@@ -90,15 +63,10 @@ local function fill_dirbuf(buf, preserve_order, on_fname)
     if #dispname_esc > max_len then
       max_len = #dispname_esc
     end
-    local lnum = dispname_lnums[dispname]
-    if lnum == nil then
-      lnum = tail
-      tail = tail + 1
-    end
-    buf_lines[lnum] = {dispname_esc, nil, "  #" .. hash}
+    table.insert(buf_lines, {dispname_esc, nil, "  #" .. hash})
 
     if fstate.fname == on_fname then
-      move_cursor_to = lnum
+      move_cursor_to = #buf_lines
     end
 
     ::continue::
@@ -133,7 +101,7 @@ local function clean_path(path)
 end
 
 -- This buffer must be the currently focused buffer
-function M.init_dirbuf(buf, preserve_order, on_fname)
+function M.init_dirbuf(buf, on_fname)
   local dir = clean_path(api.nvim_buf_get_name(buf))
   api.nvim_buf_set_name(buf, dir)
 
@@ -148,7 +116,7 @@ function M.init_dirbuf(buf, preserve_order, on_fname)
     api.nvim_buf_set_var(buf, "dirbuf_hide_hidden", false)
   end
 
-  fill_dirbuf(buf, preserve_order, on_fname)
+  fill_dirbuf(buf, on_fname)
 end
 
 function M.open(dir)
@@ -178,7 +146,7 @@ function M.open(dir)
   end
 
   api.nvim_win_set_buf(0, buf)
-  M.init_dirbuf(buf, false, old_fname)
+  M.init_dirbuf(buf, old_fname)
 end
 
 function M.enter()
@@ -255,23 +223,28 @@ function M.sync()
         "WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
     return
   end
-  fill_dirbuf(CURRENT_BUFFER, true)
+
+  -- We want to ensure that we are still hovering on the same line
+  local dispname
+  err, dispname, _ = parse_line(vim.fn.getline("."))
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
+  end
+  local fname = fs.dispname_to_fname(dispname)
+  fill_dirbuf(CURRENT_BUFFER, fname)
 end
 
 function M.toggle_hide()
   vim.b.dirbuf_hide_hidden = not vim.b.dirbuf_hide_hidden
-  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   -- We want to ensure that we are still hovering on the same line
   local err, dispname, _ = parse_line(vim.fn.getline("."))
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
   end
-  -- TODO: Should I have a function to do this directly? Probably because this
-  -- a bit hacky
-  local fname = FState.from_dispname(dispname, dir).fname
-  -- TODO: Is it intuitive to have keep your cursor on the fname?
-  fill_dirbuf(CURRENT_BUFFER, false, fname)
+  local fname = fs.dispname_to_fname(dispname)
+  fill_dirbuf(CURRENT_BUFFER, fname)
 end
 
 return M

@@ -41,6 +41,21 @@ end
 -- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
 -- with types from
 -- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
+function M.dispname_to_fname(dispname)
+  local last_char = dispname:sub(-1, -1)
+  if last_char == "/" then
+    return dispname:sub(0, -2)
+  elseif last_char == "@" then
+    return dispname:sub(0, -2)
+  elseif last_char == "=" then
+    return dispname:sub(0, -2)
+  elseif last_char == "|" then
+    return dispname:sub(0, -2)
+  else
+    return dispname
+  end
+end
+
 function FState.from_dispname(dispname, parent)
   -- This is the last byte as a string, which is okay because all our
   -- identifiers are single characters
