@@ -90,19 +90,24 @@ local function fill_dirbuf(buf, on_fname)
   return nil
 end
 
-local function clean_path(path)
-  -- XXX: `dir .. "/"` fixes issues with .. appearing in filepath if you do
-  -- dirbuf.open(".."), but it makes '/' become '//'
-  if path ~= "/" then
-    return vim.fn.fnamemodify(path .. "/", ":p")
+local function normalize_dir(path)
+  if vim.fn.isdirectory(path) == 1 then
+    -- XXX: `dir .. "/"` fixes the issue where ".." appears in the filepath
+    -- if you do dirbuf.open(".."), but it makes "/" become "//"
+    if path ~= "/" then
+      return vim.fn.fnamemodify(path .. "/", ":p")
+    else
+      return "/"
+    end
   else
-    return path
+    -- Return the path with the head (i.e. file) stripped off
+    return vim.fn.fnamemodify(path, ":h")
   end
 end
 
 -- This buffer must be the currently focused buffer
 function M.init_dirbuf(buf, on_fname)
-  local dir = clean_path(api.nvim_buf_get_name(buf))
+  local dir = normalize_dir(api.nvim_buf_get_name(buf))
   api.nvim_buf_set_name(buf, dir)
 
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
@@ -119,11 +124,11 @@ function M.init_dirbuf(buf, on_fname)
   fill_dirbuf(buf, on_fname)
 end
 
-function M.open(dir)
-  if dir == "" then
-    dir = "."
+function M.open(path)
+  if path == "" then
+    path = "."
   end
-  dir = clean_path(dir)
+  local dir = normalize_dir(path)
 
   -- XXX: This is really hard to understand. What I want is to get the current
   -- buffer's name and get the basepath of it. Ideally, expand("%:t") would
