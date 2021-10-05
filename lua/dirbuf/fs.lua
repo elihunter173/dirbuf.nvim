@@ -98,9 +98,6 @@ end
 M.plan = {}
 M.actions = {}
 
--- TODO: Create actions.{move, copy, create, delete} methods instead of relying
--- on tables in planner
-
 function M.plan.create(fstate)
   return {type = "create", fstate = fstate}
 end
@@ -111,7 +108,7 @@ local DEFAULT_DIR_MODE = tonumber("755", 8)
 function M.actions.create(args)
   local fstate = args.fstate
 
-  -- TODO: This is a TOCTOU
+  -- FIXME: This is a TOCTOU
   if uv.fs_access(fstate.path, "W") then
     return string.format("'%s' already exists", fstate.ftype, fstate.path)
   end
@@ -137,9 +134,9 @@ function M.plan.copy(src_path, dst_path)
   return {type = "copy", src_path = src_path, dst_path = dst_path}
 end
 
+-- TODO: Support copying directories. Needs keeping around fstates
 function M.actions.copy(args)
   local src_path, dst_path = args.src_path, args.dst_path
-  -- TODO: Support copying directories. Needs keeping around fstates
   local ok = uv.fs_copyfile(src_path, dst_path, nil)
   if not ok then
     return string.format("Copy failed for '%s' -> '%s'", src_path, dst_path)
@@ -196,7 +193,7 @@ end
 
 function M.actions.move(args)
   local src_path, dst_path = args.src_path, args.dst_path
-  -- TODO: This is a TOCTOU
+  -- FIXME: This is a TOCTOU
   if uv.fs_access(dst_path, "W") then
     return string.format("File at '%s' already exists", dst_path)
   end

@@ -31,7 +31,8 @@ local enum Progress
 end
 --]]
 
--- TODO: Make this so it just works off of a previous dirbuf and a dst lines?
+-- TODO: Make this so it just works off of a previous dirbuf and a list of new
+-- lines? Only if unit testing with buffers is a pain.
 function M.build_changes(buf)
   -- Parse the dirbuf into
   local dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
@@ -93,8 +94,6 @@ local function resolve_change(plan, change_map, change)
   change.progress = "handling"
 
   local current_path = change.current_fstate.path
-
-  -- TODO: Maybe it would be simpler to handle a few trivial cases first?
 
   -- If there's a cycle, we need to "unstick" it by moving one file to a
   -- temporary location. However, we need to remember to move that temporary
@@ -206,8 +205,6 @@ end
 
 function M.execute_plan(plan)
   -- TODO: Make this async
-  -- TODO: Check that all actions are valid before taking any action?
-  -- determine_plan should only generate valid plans
   for _, action in ipairs(plan) do
     local err = fs.actions[action.type](action)
     if err ~= nil then
@@ -396,7 +393,7 @@ function M.test()
       assert.same(4, opcount(plan, "move"))
     end)
 
-    -- TODO: We skip the "efficient breakpoint" tests because Dirbuf sometimes
+    -- FIXME: We skip the "efficient breakpoint" tests because Dirbuf sometimes
     -- misses efficient breakpoints. Dirbuf's solutions are always correct but
     -- not always optimal.
     pending("swap with efficient breakpoint", function()

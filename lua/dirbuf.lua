@@ -64,7 +64,6 @@ local function fill_dirbuf(buf, on_fname)
     fstates[hash] = fstate
 
     local dispname = fstate:dispname()
-    -- TODO: Maybe move this to fs.lua?
     local dispname_esc = dispname:gsub("[ \\]", "\\%0")
     if #dispname_esc > max_len then
       max_len = #dispname_esc
@@ -98,8 +97,8 @@ end
 
 local function normalize_dir(path)
   if vim.fn.isdirectory(path) == 1 then
-    -- XXX: `dir .. "/"` fixes the issue where ".." appears in the filepath
-    -- if you do dirbuf.open(".."), but it makes "/" become "//"
+    -- `dir .. "/"` fixes the issue where ".." appears in the filepath if you
+    -- do dirbuf.open(".."), but it makes "/" become "//"
     if path ~= "/" then
       return vim.fn.fnamemodify(path .. "/", ":p")
     else
@@ -135,7 +134,7 @@ function M.open(path)
   end
   local dir = normalize_dir(path)
 
-  -- XXX: This is really hard to understand. What I want is to get the current
+  -- This is really hard to understand. What I want is to get the current
   -- buffer's name and get the basepath of it. Ideally, expand("%:t") would
   -- work but if you are in a directory (ends with a /), then it returns
   -- nothing. Therefore, we have to do a hack to get the directory by looking
@@ -196,7 +195,6 @@ local function check_dirbuf(buf)
       goto continue
     end
 
-    -- TODO: Maybe I should have have a way to directly hash dir and fname?
     local fstate = FState.new(fname, dir, ftype)
     local snapshot = fstates[fstate:hash()]
     if snapshot == nil or snapshot.fname ~= fname or snapshot.ftype ~= ftype then

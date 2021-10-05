@@ -11,7 +11,7 @@ hi link DirbufSocket Special
 syntax match DirbufFifo /^\([^\\ ]\|\\\\\|\\\s\)*|\@=/
 hi link DirbufFifo Type
 
-" TODO: Highlight malformed lines?
+" TODO: Highlight malformed lines
 
 syntax match DirbufHash /\s\@<=#\x\{8}\s*$/
 hi link DirbufHash Special
