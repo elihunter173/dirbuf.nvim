@@ -13,6 +13,5 @@ hi link DirbufFifo Type
 
 " TODO: Highlight malformed lines?
 
-" TODO: Tolerate trailing whitespace? Also need to update dirbuf.parse_line
-syntax match DirbufHash /\s\@<=#\x\{8}$/
+syntax match DirbufHash /\s\@<=#\x\{8}\s*$/
 hi link DirbufHash Special

@@ -49,7 +49,7 @@ function M.parse_line(line)
     elseif c == "#" then
       break
     elseif not c:match("%s") then
-      return string.format("Unexpected character '%s'", c)
+      return string.format("Unexpected character '%s' after fname", c)
     end
   end
 
@@ -67,9 +67,14 @@ function M.parse_line(line)
   end
   local hash = table.concat(string_builder)
 
-  local c = chars()
-  if c ~= nil then
-    return string.format("Extra character '%s'", c)
+  -- Consume trailing whitespace
+  while true do
+    local c = chars()
+    if c == nil then
+      break
+    elseif not c:match("%s") then
+      return string.format("Unexpected character '%s' after hash", c)
+    end
   end
 
   return nil, dispname, hash
@@ -125,6 +130,7 @@ function M.test()
       assert.is_nil(fname)
       assert.is_nil(hash)
     end)
+
     it("invalid hex character hash", function()
       local err, fname, hash = M.parse_line([[foo #0123456z]])
       assert.is_not_nil(err)
@@ -139,8 +145,15 @@ function M.test()
       assert.is_nil(hash)
     end)
 
-    it("trailing space, no hash", function()
-      local err, fname, hash = M.parse_line([[foo ]])
+    it("trailing spaces after hash", function()
+      local err, fname, hash = M.parse_line([[foo #01234567  ]])
+      assert.is_nil(err)
+      assert.equal(fname, "foo")
+      assert.equal(hash, "01234567")
+    end)
+
+    it("trailing spaces no hash", function()
+      local err, fname, hash = M.parse_line([[foo  ]])
       assert.is_nil(err)
       assert.equal(fname, [[foo]])
       assert.is_nil(hash)
