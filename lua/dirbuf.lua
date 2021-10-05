@@ -10,6 +10,13 @@ local M = {}
 
 local CURRENT_BUFFER = 0
 
+-- Default config settings
+local config = {show_hidden = true}
+
+function M.setup(opts)
+  config = vim.tbl_deep_extend("force", config, opts or {})
+end
+
 -- fill_dirbuf fills buffer `buf` with the contents of its corresponding
 -- directory. `buf` must have the name of a valid directory and its contents
 -- must be a valid dirbuf.
@@ -20,7 +27,7 @@ local CURRENT_BUFFER = 0
 -- Returns: err
 local function fill_dirbuf(buf, on_fname)
   local dir = api.nvim_buf_get_name(buf)
-  local hide_hidden = api.nvim_buf_get_var(buf, "dirbuf_hide_hidden")
+  local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
 
   local move_cursor_to = nil
 
@@ -43,7 +50,7 @@ local function fill_dirbuf(buf, on_fname)
     if fname == nil then
       break
     end
-    if hide_hidden and fname:sub(1, 1) == "." then
+    if not show_hidden and fname:sub(1, 1) == "." then
       goto continue
     end
 
@@ -58,7 +65,6 @@ local function fill_dirbuf(buf, on_fname)
 
     local dispname = fstate:dispname()
     -- TODO: Maybe move this to fs.lua?
-    -- TODO: Test filenames with escaped slashes in them
     local dispname_esc = dispname:gsub("[ \\]", "\\%0")
     if #dispname_esc > max_len then
       max_len = #dispname_esc
@@ -114,11 +120,10 @@ function M.init_dirbuf(buf, on_fname)
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
-  -- TODO: Make the default mode configurable
   local ok, _ =
-      pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_hide_hidden")
+      pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_show_hidden")
   if not ok then
-    api.nvim_buf_set_var(buf, "dirbuf_hide_hidden", false)
+    api.nvim_buf_set_var(buf, "dirbuf_show_hidden", config.show_hidden)
   end
 
   fill_dirbuf(buf, on_fname)
@@ -181,13 +186,13 @@ local function check_dirbuf(buf)
   end
 
   local fstates = api.nvim_buf_get_var(buf, "dirbuf")
-  local hide_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_hide_hidden")
+  local show_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_show_hidden")
   while true do
     local fname, ftype = uv.fs_scandir_next(handle)
     if fname == nil then
       break
     end
-    if hide_hidden and fname:sub(1, 1) == "." then
+    if show_hidden and fname:sub(1, 1) == "." then
       goto continue
     end
 
@@ -241,7 +246,7 @@ function M.sync()
 end
 
 function M.toggle_hide()
-  vim.b.dirbuf_hide_hidden = not vim.b.dirbuf_hide_hidden
+  vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- We want to ensure that we are still hovering on the same line
   local err, dispname, _ = parse_line(vim.fn.getline("."))
   if err ~= nil then
