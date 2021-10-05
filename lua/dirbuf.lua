@@ -64,7 +64,7 @@ local function fill_dirbuf(buf, on_fname)
     fstates[hash] = fstate
 
     local dispname = fstate:dispname()
-    local dispname_esc = dispname:gsub("[ \\]", "\\%0")
+    local dispname_esc = dispname:gsub("[ \\]", "\\%0"):gsub("\t", "\\t")
     if #dispname_esc > max_len then
       max_len = #dispname_esc
     end

@@ -2,8 +2,6 @@ local fs = require("dirbuf.fs")
 
 local M = {}
 
--- TODO: Handle tabs in the string appropriately
-
 -- The language of valid dirbuf lines is regular, so normally I would use a
 -- regular expression. However, Lua doesn't have a proper regex engine, just
 -- simpler patterns. These patterns can't parse dirbuf lines (b/c of escaping),
@@ -20,15 +18,21 @@ function M.parse_line(line)
     local c = chars()
     if c == nil then
       -- Ended line in fname
-      local fname = table.concat(string_builder)
-      return nil, fname, nil
+      if #string_builder > 0 then
+        local fname = table.concat(string_builder)
+        return nil, fname, nil
+      else
+        return "Empty line"
+      end
 
-    elseif c:match("%s") then
+    elseif c:match("[ \t]") then
       break
     elseif c == "\\" then
       local next_c = chars()
       if next_c == " " or next_c == "\\" then
         table.insert(string_builder, next_c)
+      elseif next_c == "t" then
+        table.insert(string_builder, "\t")
       elseif next_c == nil then
         return "Cannot escape end of line"
       else
@@ -48,7 +52,7 @@ function M.parse_line(line)
       return nil, dispname, nil
     elseif c == "#" then
       break
-    elseif not c:match("%s") then
+    elseif not c:match("[ \t]") then
       return string.format("Unexpected character '%s' after fname", c)
     end
   end
@@ -72,7 +76,7 @@ function M.parse_line(line)
     local c = chars()
     if c == nil then
       break
-    elseif not c:match("%s") then
+    elseif not c:match("[ \t]") then
       return string.format("Unexpected character '%s' after hash", c)
     end
   end
@@ -96,11 +100,32 @@ function M.test()
       assert.equal(hash, "01234567")
     end)
 
-    it("escaped backslashes", function()
+    it("escaped tab", function()
+      local err, fname, hash = M.parse_line([[before\tafter  #01234567]])
+      assert.is_nil(err)
+      assert.equal(fname, [[before	after]])
+      assert.equal(hash, "01234567")
+    end)
+
+    it("escaped backslash", function()
       local err, fname, hash = M.parse_line([[before\\after  #01234567]])
       assert.is_nil(err)
       assert.equal(fname, [[before\after]])
       assert.equal(hash, "01234567")
+    end)
+
+    it("unescaped space", function()
+      local err, fname, hash = M.parse_line([[foo bar #01234567]])
+      assert.is_not_nil(err)
+      assert.is_nil(fname)
+      assert.is_nil(hash)
+    end)
+
+    it("unescaped tab", function()
+      local err, fname, hash = M.parse_line([[foo	bar #01234567]])
+      assert.is_not_nil(err)
+      assert.is_nil(fname)
+      assert.is_nil(hash)
     end)
 
     it("invalid escape sequence", function()
@@ -156,13 +181,6 @@ function M.test()
       local err, fname, hash = M.parse_line([[foo  ]])
       assert.is_nil(err)
       assert.equal(fname, [[foo]])
-      assert.is_nil(hash)
-    end)
-
-    it("extra token", function()
-      local err, fname, hash = M.parse_line([[foo bar #01234567]])
-      assert.is_not_nil(err)
-      assert.is_nil(fname)
       assert.is_nil(hash)
     end)
 

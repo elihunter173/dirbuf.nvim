@@ -1,15 +1,15 @@
 " Matches any number of unescaped spaces at the beginning of a line, followed
 " by the appropriate signifier
-syntax match DirbufFile /^\([^\\ ]\|\\\\\|\\\s\)*/
+syntax match DirbufFile /^\([^\\ \t]\|\\[\\ t]\)*/
 hi link DirbufFile Normal
-syntax match DirbufDirectory /^\([^\\ ]\|\\\\\|\\\s\)*\/\@=/
+syntax match DirbufDirectory /^\([^\\ \t]\|\\[\\ t]\)*\/\@=/
 hi link DirbufDirectory Directory
-syntax match DirbufLink /^\([^\\ ]\|\\\\\|\\\s\)*@\@=/
+syntax match DirbufLink /^\([^\\ \t]\|\\[\\ t]\)*@\@=/
 hi link DirbufLink String
-syntax match DirbufSocket /^\([^\\ ]\|\\\\\|\\\s\)*=\@=/
+syntax match DirbufFifo /^\([^\\ \t]\|\\[\\ t]\)*|\@=/
+hi link DirbufFifo Constant
+syntax match DirbufSocket /^\([^\\ \t]\|\\[\\ t]\)*=\@=/
 hi link DirbufSocket Special
-syntax match DirbufFifo /^\([^\\ ]\|\\\\\|\\\s\)*|\@=/
-hi link DirbufFifo Type
 
 " TODO: Highlight malformed lines
 
