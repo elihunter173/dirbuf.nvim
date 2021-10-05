@@ -8,8 +8,6 @@ local create, copy, delete, move = fs.plan.create, fs.plan.copy, fs.plan.delete,
 
 local M = {}
 
-local CURRENT_BUFFER = 0
-
 -- Type definitions --
 -- I wish teal had better language server support but alas
 --[[
@@ -51,7 +49,7 @@ function M.build_changes(buf)
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
   -- Go through every line and build changes
-  for lnum, line in ipairs(api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)) do
+  for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
     local err, dispname, hash = parse_line(line)
     if err ~= nil then
       return string.format("Line %d: %s", dir, lnum, err)
