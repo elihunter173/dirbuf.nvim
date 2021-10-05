@@ -37,19 +37,23 @@ function FState.new(fname, parent, ftype)
   return o
 end
 
--- TODO: Do all classifiers from here
--- https://unix.stackexchange.com/questions/82357/what-do-the-symbols-displayed-by-ls-f-mean#82358
--- with types from
+-- FTypes are taken from
 -- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
+--[[
+local enum FType
+  "file"
+  "directory"
+  "link"
+  "fifo"
+  "socket"
+  "char"
+  "block"
+end
+--]]
 function M.dispname_to_fname(dispname)
   local last_char = dispname:sub(-1, -1)
-  if last_char == "/" then
-    return dispname:sub(0, -2)
-  elseif last_char == "@" then
-    return dispname:sub(0, -2)
-  elseif last_char == "=" then
-    return dispname:sub(0, -2)
-  elseif last_char == "|" then
+  if last_char == "/" or last_char == "@" or last_char == "|" or last_char ==
+      "=" or last_char == "%" or last_char == "#" then
     return dispname:sub(0, -2)
   else
     return dispname
@@ -64,10 +68,14 @@ function FState.from_dispname(dispname, parent)
     return FState.new(dispname:sub(0, -2), parent, "directory")
   elseif last_char == "@" then
     return FState.new(dispname:sub(0, -2), parent, "link")
-  elseif last_char == "=" then
-    return FState.new(dispname:sub(0, -2), parent, "socket")
   elseif last_char == "|" then
     return FState.new(dispname:sub(0, -2), parent, "fifo")
+  elseif last_char == "=" then
+    return FState.new(dispname:sub(0, -2), parent, "socket")
+  elseif last_char == "%" then
+    return FState.new(dispname:sub(0, -2), parent, "char")
+  elseif last_char == "#" then
+    return FState.new(dispname:sub(0, -2), parent, "block")
   else
     return FState.new(dispname, parent, "file")
   end
@@ -80,12 +88,15 @@ function FState:dispname()
     return self.fname .. "/"
   elseif self.ftype == "link" then
     return self.fname .. "@"
-  elseif self.ftype == "socket" then
-    return self.fname .. "="
   elseif self.ftype == "fifo" then
     return self.fname .. "|"
+  elseif self.ftype == "socket" then
+    return self.fname .. "="
+  elseif self.ftype == "char" then
+    return self.fname .. "%"
+  elseif self.ftype == "block" then
+    return self.fname .. "#"
   else
-    -- Should I just assume it's a file??
     error(string.format("Unrecognized ftype '%s'. This should be impossible",
                         vim.inspect(self.ftype)))
   end
@@ -199,7 +210,8 @@ function M.actions.move(args)
   end
   local ok, err, _ = uv.fs_rename(src_path, dst_path)
   if not ok then
-    return string.format("Move failed for %s -> %s: %s", src_path, dst_path, err)
+    return
+        string.format("Move failed for %s -> %s: %s", src_path, dst_path, err)
   end
 end
 
