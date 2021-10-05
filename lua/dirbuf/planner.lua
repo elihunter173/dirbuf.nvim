@@ -52,7 +52,7 @@ function M.build_changes(buf)
   for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
     local err, dispname, hash = parse_line(line)
     if err ~= nil then
-      return string.format("Line %d: %s", dir, lnum, err)
+      return string.format("Line %d: %s", lnum, err)
     end
     local dst_fstate = FState.from_dispname(dispname, dir)
 
