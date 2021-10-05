@@ -5,8 +5,12 @@ endif
 command! -nargs=? -complete=dir Dirbuf lua require'dirbuf'.open(<q-args>)
 
 " This (dirbuf_up) mapping was from dirvish.vim
-nnoremap <silent> <Plug>(dirbuf_up)
+noremap <silent> <unique> <Plug>(dirbuf_up)
       \ <cmd>execute 'Dirbuf %:p'.repeat(':h', v:count1 + isdirectory(expand('%')))<cr>
+noremap <silent> <unique> <Plug>(dirbuf_enter)
+      \ <cmd>execute 'lua require"dirbuf".enter()'<cr>
+noremap <silent> <unique> <Plug>(dirbuf_toggle_hide)
+      \ <cmd>execute 'lua require"dirbuf".toggle_hide()'<cr>
 
 if mapcheck('-', 'n') ==# '' && !hasmapto('<Plug>(dirbuf_up)', 'n')
   nmap - <Plug>(dirbuf_up)
