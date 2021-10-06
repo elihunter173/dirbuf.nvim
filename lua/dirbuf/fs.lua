@@ -157,15 +157,7 @@ function M.actions.copy(args)
 end
 
 local function rm(path, ftype)
-  if ftype == "file" or ftype == "symlink" then
-    local ok, err, _ = uv.fs_unlink(path)
-    if ok then
-      return nil
-    else
-      return err
-    end
-
-  elseif ftype == "directory" then
+  if ftype == "directory" then
     local handle = uv.fs_scandir(path)
     while true do
       local next_fname, next_ftype = uv.fs_scandir_next(handle)
@@ -185,7 +177,12 @@ local function rm(path, ftype)
     end
 
   else
-    return "Unrecognized ftype"
+    local ok, err, _ = uv.fs_unlink(path)
+    if ok then
+      return nil
+    else
+      return err
+    end
   end
 end
 
