@@ -131,7 +131,7 @@ function M.actions.create(args)
   elseif fstate.ftype == "directory" then
     ok = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
   else
-    return string.format("Unsupported ftype: %s", fstate.ftype)
+    return string.format("Cannot create %s", fstate.ftype)
   end
 
   if not ok then

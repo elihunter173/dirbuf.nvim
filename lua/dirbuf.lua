@@ -59,7 +59,7 @@ local function fill_dirbuf(buf, on_fname)
     if fstates[hash] ~= nil then
       -- This should never happen
       error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash,
-                          fstates[hash].fname, fname))
+                          fstates[hash].path, fstate.path))
     end
     fstates[hash] = fstate
 
@@ -234,7 +234,7 @@ function M.sync()
 
   -- We want to ensure that we are still hovering on the same line
   local dispname
-  err, dispname, _ = parse_line(vim.fn.getline("."))
+  err, dispname, _ = parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -246,7 +246,7 @@ end
 function M.toggle_hide()
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- We want to ensure that we are still hovering on the same line
-  local err, dispname, _ = parse_line(vim.fn.getline("."))
+  local err, dispname, _ = parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
