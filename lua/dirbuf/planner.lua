@@ -91,8 +91,6 @@ local function resolve_change(plan, change_map, change)
 
   change.progress = "handling"
 
-  local current_path = change.current_fstate.path
-
   -- If there's a cycle, we need to "unstick" it by moving one file to a
   -- temporary location. However, we need to remember to move that temporary
   -- file back to where we want after everything else in the cycle has been
@@ -136,7 +134,7 @@ local function resolve_change(plan, change_map, change)
     if not change.stays and move_to == nil then
       move_to = dst
     else
-      table.insert(plan, copy(current_path, dst.path))
+      table.insert(plan, copy(change.current_fstate, dst))
     end
 
     ::continue::
@@ -144,24 +142,24 @@ local function resolve_change(plan, change_map, change)
 
   local gone = false
   if move_to ~= nil then
-    table.insert(plan, move(current_path, move_to.path))
+    table.insert(plan, move(change.current_fstate.path, move_to.path))
     gone = true
   end
 
   if stuck_fstate ~= nil then
     if move_to ~= nil then
       -- We have a safe place to copy from
-      post_resolution_action = copy(move_to.path, stuck_fstate.path)
+      post_resolution_action = copy(move_to, stuck_fstate)
 
     elseif change.stays then
       -- We have a safe place to copy from
-      post_resolution_action = copy(current_path, stuck_fstate.path)
+      post_resolution_action = copy(change.current_fstate, stuck_fstate)
 
     else
       -- We have NO safe place to copy from and we don't stay, so move to a
       -- temporary and then move again
       local temppath = fs.temppath()
-      table.insert(plan, move(current_path, temppath))
+      table.insert(plan, move(change.current_fstate.path, temppath))
       post_resolution_action = move(temppath, stuck_fstate.path)
       gone = true
     end
@@ -228,7 +226,7 @@ function M.test()
       if action.type == "create" then
         fake_fs[action.fstate.path] = ""
       elseif action.type == "copy" then
-        fake_fs[action.dst_path] = fake_fs[action.src_path]
+        fake_fs[action.dst_fstate.path] = fake_fs[action.src_fstate.path]
       elseif action.type == "delete" then
         fake_fs[action.fstate.path] = nil
       elseif action.type == "move" then

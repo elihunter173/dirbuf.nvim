@@ -13,7 +13,7 @@ create an empty directory, add a "/" at the end.
 
 To delete a file or directory, delete its line.
 
-To copy a file, copy the file's line and give it a new name.
+To copy a file or directory, copy its line and give it a new name.
 
 To rename a file or directory, change its name in the directory buffer.
 

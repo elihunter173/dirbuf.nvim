@@ -141,19 +141,43 @@ function M.actions.create(args)
   return nil
 end
 
-function M.plan.copy(src_path, dst_path)
-  return {type = "copy", src_path = src_path, dst_path = dst_path}
+local function cp(src_path, dst_path, ftype)
+  if ftype == "directory" then
+    local ok, err, _ = uv.fs_mkdir(dst_path, DEFAULT_DIR_MODE)
+    if not ok then
+      return err
+    end
+
+    local handle = uv.fs_scandir(src_path)
+    while true do
+      local next_fname, next_ftype = uv.fs_scandir_next(handle)
+      if next_fname == nil then
+        break
+      end
+      err = cp(M.join(src_path, next_fname), M.join(dst_path, next_fname),
+               next_ftype)
+      if err ~= nil then
+        return err
+      end
+    end
+
+  else
+    local ok, err, _ = uv.fs_copyfile(src_path, dst_path)
+    if not ok then
+      return err
+    end
+    return nil
+  end
 end
 
--- TODO: Support copying directories. Needs keeping around fstates
-function M.actions.copy(args)
-  local src_path, dst_path = args.src_path, args.dst_path
-  local ok = uv.fs_copyfile(src_path, dst_path, nil)
-  if not ok then
-    return string.format("Copy failed for '%s' -> '%s'", src_path, dst_path)
-  end
+function M.plan.copy(src_fstate, dst_fstate)
+  return {type = "copy", src_fstate = src_fstate, dst_fstate = dst_fstate}
+end
 
-  return nil
+function M.actions.copy(args)
+  local src_fstate, dst_fstate = args.src_fstate, args.dst_fstate
+  -- We have ensured that the fstates are the same in plan.copy
+  return cp(src_fstate.path, dst_fstate.path, src_fstate.ftype)
 end
 
 local function rm(path, ftype)
@@ -170,19 +194,17 @@ local function rm(path, ftype)
       end
     end
     local ok, err, _ = uv.fs_rmdir(path)
-    if ok then
-      return nil
-    else
+    if not ok then
       return err
     end
+    return nil
 
   else
     local ok, err, _ = uv.fs_unlink(path)
-    if ok then
-      return nil
-    else
+    if not ok then
       return err
     end
+    return nil
   end
 end
 
