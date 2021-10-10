@@ -23,8 +23,8 @@ endif
 
 augroup dirbuf
   autocmd!
-  " Makes editing a directory open a dirbuf
-  autocmd BufEnter * if isdirectory(expand('<afile>')) && !exists('b:dirbuf')
+  " Makes editing a directory open a dirbuf. We always re-init the dirbuf
+  autocmd BufEnter * if isdirectory(expand('<afile>')) 
         \ | execute 'lua require"dirbuf".init_dirbuf(vim.fn.expand("<abuf>"))'
         \ | endif
 augroup END
