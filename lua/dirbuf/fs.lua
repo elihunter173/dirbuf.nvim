@@ -62,7 +62,7 @@ end
 
 function FState.from_dispname(dispname, parent)
   -- This is the last byte as a string, which is okay because all our
-  -- identifiers are single characters
+  -- classifiers are single characters
   local last_char = dispname:sub(-1, -1)
   if last_char == "/" then
     return FState.new(dispname:sub(0, -2), parent, "directory")
@@ -81,6 +81,8 @@ function FState.from_dispname(dispname, parent)
   end
 end
 
+-- Add the appropriate classifier for the given ftype. These classifiers are
+-- taken from `ls --classify` and zsh's tab completion
 function FState:dispname()
   if self.ftype == "file" then
     return self.fname

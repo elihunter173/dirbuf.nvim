@@ -1,19 +1,20 @@
 " Matches any number of unescaped spaces at the beginning of a line, followed
-" by the appropriate signifier
+" by the appropriate signifier.
 syntax match DirbufFile /^\([^\\ \t]\|\\[\\ t]\)\+/
-highlight link DirbufFile Normal
 syntax match DirbufDirectory /^\([^\\ \t]\|\\[\\ t]\)\+\//me=e-1
-highlight link DirbufDirectory Directory
 syntax match DirbufLink /^\([^\\ \t]\|\\[\\ t]\)\+@/me=e-1
-highlight link DirbufLink String
 syntax match DirbufFifo /^\([^\\ \t]\|\\[\\ t]\)\+|/me=e-1
-highlight link DirbufFifo Constant
 syntax match DirbufSocket /^\([^\\ \t]\|\\[\\ t]\)\+=/me=e-1
-highlight link DirbufSocket Special
 syntax match DirbufChar /^\([^\\ \t]\|\\[\\ t]\)\+%/me=e-1
-highlight link DirbufChar Type
 syntax match DirbufBlock /^\([^\\ \t]\|\\[\\ t]\)\+#/me=e-1
-highlight link DirbufBlock Type
+" Highlight each object according to its color in by ls --color=always
+highlight link DifbufFile Normal
+exe 'highlight DirbufDirectory ctermbg=4 gui=bold guifg='.g:terminal_color_4
+exe 'highlight DirbufLink ctermbg=6 guifg='.g:terminal_color_6
+exe 'highlight DirbufFifo ctermbg=3 guifg='.g:terminal_color_2
+exe 'highlight DirbufSocket ctermbg=5 guifg='.g:terminal_color_5
+exe 'highlight DirbufChar ctermbg=3 gui=bold guifg='.g:terminal_color_3
+exe 'highlight DirbufBlock ctermbg=3 gui=bold guifg='.g:terminal_color_3
 
 syntax match DirbufHash /\s#\x\{8}\s*$/ms=s+1
 highlight link DirbufHash Special
