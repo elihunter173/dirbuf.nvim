@@ -159,11 +159,6 @@ function M.open(path)
 end
 
 function M.enter()
-  if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
-    api.nvim_err_writeln("Dirbuf must be saved first")
-    return
-  end
-
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local line = api.nvim_get_current_line()
   local err, _, hash = parse_line(line)
@@ -171,9 +166,17 @@ function M.enter()
     api.nvim_err_writeln(err)
     return
   end
-  local fstate = vim.b.dirbuf[hash]
+  local fname = vim.b.dirbuf[hash].fname
+
+  if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
+    api.nvim_err_writeln(string.format(
+                             "Cannot enter '%s'. Dirbuf must be saved first",
+                             fname))
+    return
+  end
+
   -- We rely on the autocmd to open directories
-  vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join(dir, fstate.fname)))
+  vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join(dir, fname)))
 end
 
 -- Ensure that the directory has not changed since our last snapshot
