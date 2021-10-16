@@ -181,14 +181,14 @@ end
 
 -- Ensure that the directory has not changed since our last snapshot
 local function check_dirbuf(buf)
-  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
+  local dir = api.nvim_buf_get_name(buf)
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
     return err
   end
 
   local fstates = api.nvim_buf_get_var(buf, "dirbuf")
-  local show_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_show_hidden")
+  local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
   while true do
     local fname, ftype = uv.fs_scandir_next(handle)
     if fname == nil then
