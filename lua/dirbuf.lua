@@ -212,6 +212,10 @@ local function check_dirbuf(buf)
 end
 
 function M.sync()
+  if not api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
+    return
+  end
+
   local err = check_dirbuf(CURRENT_BUFFER)
   if err ~= nil then
     api.nvim_err_writeln("Cannot save dirbuf: " .. err)
