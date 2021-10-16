@@ -11,7 +11,9 @@ local M = {}
 local CURRENT_BUFFER = 0
 
 -- Default config settings
-local config = {show_hidden = true}
+local config = {
+  show_hidden = true,
+}
 
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", config, opts or {})
@@ -110,22 +112,24 @@ local function normalize_dir(path)
   end
 end
 
--- This buffer must be the currently focused buffer
-function M.init_dirbuf(buf, on_fname)
-  local dir = normalize_dir(api.nvim_buf_get_name(buf))
-  api.nvim_buf_set_name(buf, dir)
-
+local function set_dirbuf_opts(buf)
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
   api.nvim_buf_set_option(buf, "bufhidden", "hide")
 
-  local ok, _ =
-      pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_show_hidden")
+  local ok, _ = pcall(api.nvim_buf_get_var, buf, "dirbuf_show_hidden")
   if not ok then
     api.nvim_buf_set_var(buf, "dirbuf_show_hidden", config.show_hidden)
   end
+end
 
-  fill_dirbuf(buf, on_fname)
+-- This buffer must be the currently focused buffer
+function M.edit_dirbuf(buf, name)
+  local dir = normalize_dir(name)
+  api.nvim_buf_set_name(buf, dir)
+
+  set_dirbuf_opts(buf)
+  fill_dirbuf(buf)
 end
 
 function M.open(path)
@@ -152,10 +156,11 @@ function M.open(path)
       return
     end
     api.nvim_buf_set_name(buf, dir)
+    set_dirbuf_opts(buf)
   end
 
   api.nvim_win_set_buf(0, buf)
-  M.init_dirbuf(buf, old_fname)
+  fill_dirbuf(buf, old_fname)
 end
 
 function M.enter()
