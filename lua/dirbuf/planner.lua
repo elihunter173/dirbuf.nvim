@@ -1,6 +1,6 @@
 local api = vim.api
 
-local parse_line = require("dirbuf.parser").parse_line
+local parser = require("dirbuf.parser")
 local fs = require("dirbuf.fs")
 local FState = fs.FState
 local create, copy, delete, move = fs.plan.create, fs.plan.copy, fs.plan.delete,
@@ -50,7 +50,7 @@ function M.build_changes(buf)
   local used_fnames = {}
   -- Go through every line and build changes
   for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
-    local err, dispname, hash = parse_line(line)
+    local err, dispname, hash = parser.line(line)
     if err ~= nil then
       return string.format("Line %d: %s", lnum, err)
     end

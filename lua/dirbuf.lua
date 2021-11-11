@@ -1,7 +1,7 @@
 local api = vim.api
 local uv = vim.loop
 
-local parse_line = require("dirbuf.parser").parse_line
+local parser = require("dirbuf.parser")
 local planner = require("dirbuf.planner")
 local fs = require("dirbuf.fs")
 local FState = fs.FState
@@ -166,7 +166,7 @@ end
 function M.enter()
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local line = api.nvim_get_current_line()
-  local err, _, hash = parse_line(line)
+  local err, _, hash = parser.line(line)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -246,7 +246,7 @@ function M.sync()
 
   -- We want to ensure that we are still hovering on the same line
   local dispname
-  err, dispname, _ = parse_line(api.nvim_get_current_line())
+  err, dispname, _ = parser.line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -258,7 +258,7 @@ end
 function M.toggle_hide()
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- We want to ensure that we are still hovering on the same line
-  local err, dispname, _ = parse_line(api.nvim_get_current_line())
+  local err, dispname, _ = parser.line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
