@@ -54,6 +54,10 @@ function M.build_changes(buf)
     if err ~= nil then
       return string.format("Line %d: %s", lnum, err)
     end
+    if dispname == nil then
+      goto continue
+    end
+
     local dst_fstate = FState.from_dispname(dispname, dir)
 
     if used_fnames[dst_fstate.fname] ~= nil then
@@ -77,6 +81,8 @@ function M.build_changes(buf)
       end
     end
     used_fnames[dst_fstate.fname] = true
+
+    ::continue::
   end
 
   return nil, {change_map = change_map, new_files = new_files}

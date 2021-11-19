@@ -51,6 +51,10 @@ local enum FType
 end
 --]]
 function M.dispname_to_fname(dispname)
+  if dispname == nil then
+    return nil
+  end
+
   local last_char = dispname:sub(-1, -1)
   if last_char == "/" or last_char == "@" or last_char == "|" or last_char ==
       "=" or last_char == "%" or last_char == "#" then

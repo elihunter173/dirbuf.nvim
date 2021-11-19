@@ -22,7 +22,7 @@ function M.line(line)
         local fname = table.concat(string_builder)
         return nil, fname, nil
       else
-        return "Empty line"
+        return nil, nil, nil
       end
 
     elseif c:match("[ \t]") then
