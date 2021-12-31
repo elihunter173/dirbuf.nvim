@@ -25,11 +25,11 @@ function M.line(line)
         return nil, nil, nil
       end
 
-    elseif c:match("[ \t]") then
+    elseif c == "\t" then
       break
     elseif c == "\\" then
       local next_c = chars()
-      if next_c == " " or next_c == "\\" then
+      if next_c == "/" or next_c == "\\" then
         table.insert(string_builder, next_c)
       elseif next_c == "t" then
         table.insert(string_builder, "\t")
@@ -52,7 +52,7 @@ function M.line(line)
       return nil, dispname, nil
     elseif c == "#" then
       break
-    elseif not c:match("[ \t]") then
+    elseif not c:match("%s") then
       return string.format("Unexpected character '%s' after fname", c)
     end
   end
@@ -76,7 +76,7 @@ function M.line(line)
     local c = chars()
     if c == nil then
       break
-    elseif not c:match("[ \t]") then
+    elseif not c:match("%s") then
       return string.format("Unexpected character '%s' after hash", c)
     end
   end
@@ -87,42 +87,35 @@ end
 function M.test()
   describe("line", function()
     it("simple line", function()
-      local err, fname, hash = M.line([[README.md  #deadbeef]])
+      local err, fname, hash = M.line("README.md\t#deadbeef")
       assert.is_nil(err)
       assert.equal(fname, "README.md")
       assert.equal(hash, "deadbeef")
     end)
 
-    it("escaped spaces", function()
-      local err, fname, hash = M.line([[\ a\ b\ c\   #01234567]])
+    it("spaces", function()
+      local err, fname, hash = M.line([[ a b c 	#01234567]])
       assert.is_nil(err)
       assert.equal(fname, " a b c ")
       assert.equal(hash, "01234567")
     end)
 
     it("escaped tab", function()
-      local err, fname, hash = M.line([[before\tafter  #01234567]])
+      local err, fname, hash = M.line([[before\tafter	#01234567]])
       assert.is_nil(err)
       assert.equal(fname, [[before	after]])
       assert.equal(hash, "01234567")
     end)
 
     it("escaped backslash", function()
-      local err, fname, hash = M.line([[before\\after  #01234567]])
+      local err, fname, hash = M.line([[before\\after	#01234567]])
       assert.is_nil(err)
       assert.equal(fname, [[before\after]])
       assert.equal(hash, "01234567")
     end)
 
-    it("unescaped space", function()
-      local err, fname, hash = M.line([[foo bar #01234567]])
-      assert.is_not_nil(err)
-      assert.is_nil(fname)
-      assert.is_nil(hash)
-    end)
-
     it("unescaped tab", function()
-      local err, fname, hash = M.line([[foo	bar #01234567]])
+      local err, fname, hash = M.line([[foo	bar	#01234567]])
       assert.is_not_nil(err)
       assert.is_nil(fname)
       assert.is_nil(hash)
@@ -143,35 +136,28 @@ function M.test()
     end)
 
     it("short hash", function()
-      local err, fname, hash = M.line([[foo #0123456]])
+      local err, fname, hash = M.line([[foo	#0123456]])
       assert.is_not_nil(err)
       assert.is_nil(fname)
       assert.is_nil(hash)
     end)
 
     it("long hash", function()
-      local err, fname, hash = M.line([[foo #012345678]])
+      local err, fname, hash = M.line([[foo	#012345678]])
       assert.is_not_nil(err)
       assert.is_nil(fname)
       assert.is_nil(hash)
     end)
 
     it("invalid hex character hash", function()
-      local err, fname, hash = M.line([[foo #0123456z]])
-      assert.is_not_nil(err)
-      assert.is_nil(fname)
-      assert.is_nil(hash)
-    end)
-
-    it("leading space", function()
-      local err, fname, hash = M.line([[ foo #01234567]])
+      local err, fname, hash = M.line([[foo	#0123456z]])
       assert.is_not_nil(err)
       assert.is_nil(fname)
       assert.is_nil(hash)
     end)
 
     it("trailing spaces after hash", function()
-      local err, fname, hash = M.line([[foo #01234567  ]])
+      local err, fname, hash = M.line([[foo	#01234567  ]])
       assert.is_nil(err)
       assert.equal(fname, "foo")
       assert.equal(hash, "01234567")
@@ -180,12 +166,12 @@ function M.test()
     it("trailing spaces no hash", function()
       local err, fname, hash = M.line([[foo  ]])
       assert.is_nil(err)
-      assert.equal(fname, [[foo]])
+      assert.equal(fname, [[foo  ]])
       assert.is_nil(hash)
     end)
 
-    it("non-ASCII fnames", function()
-      local err, fname, hash = M.line([[文档  #01234567]])
+    it("non-ASCII fname", function()
+      local err, fname, hash = M.line([[文档	#01234567]])
       assert.is_nil(err)
       assert.equal(fname, "文档")
       assert.equal(hash, "01234567")

@@ -66,11 +66,11 @@ local function fill_dirbuf(buf, on_fname)
     fstates[hash] = fstate
 
     local dispname = fstate:dispname()
-    local dispname_esc = dispname:gsub("[ \\]", "\\%0"):gsub("\t", "\\t")
+    local dispname_esc = dispname:gsub("\\", "\\\\"):gsub("\t", "\\t")
     if #dispname_esc > max_len then
       max_len = #dispname_esc
     end
-    table.insert(buf_lines, {dispname_esc, nil, "  #" .. hash})
+    table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
 
     if fstate.fname == on_fname then
       move_cursor_to = #buf_lines
@@ -78,14 +78,13 @@ local function fill_dirbuf(buf, on_fname)
 
     ::continue::
   end
-  -- Now fill in the padding in the (fname_esc, padding, hash) tuples with
-  -- appropriate padding such that the hashes line up
-  for idx, tuple in ipairs(buf_lines) do
-    tuple[2] = string.rep(" ", max_len - #tuple[1])
-    buf_lines[idx] = table.concat(tuple)
-  end
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
   api.nvim_buf_set_var(buf, "dirbuf", fstates)
+
+  -- Us filling the buffer counts as modifying it
+  -- TODO: Make length configurable
+  api.nvim_buf_set_option(buf, "tabstop", max_len + 2)
+
 
   if move_cursor_to ~= nil then
     api.nvim_win_set_cursor(0, {move_cursor_to, 0})
