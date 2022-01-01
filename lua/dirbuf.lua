@@ -19,83 +19,6 @@ function M.setup(opts)
   config = vim.tbl_deep_extend("force", config, opts or {})
 end
 
--- fill_dirbuf fills buffer `buf` with the contents of its corresponding
--- directory. `buf` must have the name of a valid directory and its contents
--- must be a valid dirbuf.
---
--- If `on_fname` is set, then the cursor will be put on the line corresponding
--- to `on_fname`.
---
--- Returns: err
-local function fill_dirbuf(buf, on_fname)
-  local dir = api.nvim_buf_get_name(buf)
-  local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
-
-  local move_cursor_to = nil
-
-  local handle, err, _ = uv.fs_scandir(dir)
-  if err ~= nil then
-    return err
-  end
-
-  -- Fill out buffer
-  -- Stores file info by hash
-  local fstates = {}
-  -- Stores (fname_esc, padding, hash) tuples which we will join into strings
-  -- later to form the buffer's lines. We fill in the padding at the end to
-  -- line up the hashes.
-  local buf_lines = {}
-  -- Used to we can make all the hashes line up
-  local max_len = 0
-  while true do
-    local fname, ftype = uv.fs_scandir_next(handle)
-    if fname == nil then
-      break
-    end
-    if not show_hidden and fname:sub(1, 1) == "." then
-      goto continue
-    end
-
-    local fstate = FState.new(fname, dir, ftype)
-    local hash = fstate:hash()
-    if fstates[hash] ~= nil then
-      -- This should never happen
-      error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash,
-                          fstates[hash].path, fstate.path))
-    end
-    fstates[hash] = fstate
-
-    local dispname = fstate:dispname()
-    local dispname_esc = dispname:gsub("\\", "\\\\"):gsub("\t", "\\t")
-    if #dispname_esc > max_len then
-      max_len = #dispname_esc
-    end
-    table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
-
-    if fstate.fname == on_fname then
-      move_cursor_to = #buf_lines
-    end
-
-    ::continue::
-  end
-  api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
-  api.nvim_buf_set_var(buf, "dirbuf", fstates)
-
-  -- Us filling the buffer counts as modifying it
-  -- TODO: Make length configurable
-  api.nvim_buf_set_option(buf, "tabstop", max_len + 2)
-
-
-  if move_cursor_to ~= nil then
-    api.nvim_win_set_cursor(0, {move_cursor_to, 0})
-  end
-
-  -- Us filling the buffer counts as modifying it
-  api.nvim_buf_set_option(buf, "modified", false)
-
-  return nil
-end
-
 local function normalize_dir(path)
   if vim.fn.isdirectory(path) == 1 then
     -- `dir .. "/"` fixes the issue where ".." appears in the filepath if you
@@ -128,7 +51,7 @@ function M.edit_dirbuf(buf, name)
   api.nvim_buf_set_name(buf, dir)
 
   set_dirbuf_opts(buf)
-  fill_dirbuf(buf)
+  parser.fill_dirbuf(buf)
 end
 
 function M.open(path)
@@ -159,7 +82,7 @@ function M.open(path)
   end
 
   api.nvim_win_set_buf(0, buf)
-  fill_dirbuf(buf, old_fname)
+  parser.fill_dirbuf(buf, old_fname)
 end
 
 function M.enter()
@@ -251,7 +174,7 @@ function M.sync()
     return
   end
   local fname = fs.dispname_to_fname(dispname)
-  fill_dirbuf(CURRENT_BUFFER, fname)
+  parser.fill_dirbuf(CURRENT_BUFFER, fname)
 end
 
 function M.toggle_hide()
@@ -263,7 +186,7 @@ function M.toggle_hide()
     return
   end
   local fname = fs.dispname_to_fname(dispname)
-  fill_dirbuf(CURRENT_BUFFER, fname)
+  parser.fill_dirbuf(CURRENT_BUFFER, fname)
 end
 
 return M
