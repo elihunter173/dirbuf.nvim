@@ -40,5 +40,5 @@ highlight link DirbufHash Special
 " ```
 " This finds every except for the regular expression
 " See: https://vim.fandom.com/wiki/Search_for_lines_not_containing_pattern_and_other_helpful_searches#Searching_with_.2F
-syntax match DirbufMalformedLine /^\(\(\([^\\\t]\|\\[\\t]\)\+\(\t#\x\{8}\)\?\s*$\)\@!.\)*$/
+syntax match DirbufMalformedLine /^\(\(\_^\([^\\\t]\|\\[\\t]\)\+\(\t#\x\{8}\)\?\s*\_$\)\@!.\)*$/
 highlight link DirbufMalformedLine Error
