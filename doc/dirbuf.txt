@@ -78,6 +78,10 @@ dirbuf.setup({opts})                                            *dirbuf-setup()*
 ==============================================================================
 OPTIONS                                                         *dirbuf-options*
 
+|hash_padding| (default: `2`)
+    Number of characters of padding between the file hashes and the longest
+    filename. This must be an integer larger than 1.
+
 |show_hidden| (default: `true`)
     Whether Dirbuf should display hidden files (i.e. "dot files") by default
     when opening new directory buffers. This can be changed locally per-buffer

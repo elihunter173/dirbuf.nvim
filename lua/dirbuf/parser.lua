@@ -1,6 +1,7 @@
 local api = vim.api
 local uv = vim.loop
 
+local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
 local FState = fs.FState
 
@@ -152,8 +153,7 @@ function M.fill_dirbuf(buf, on_fname)
 
   -- Us filling the buffer counts as modifying it
   -- TODO: Make length configurable
-  api.nvim_buf_set_option(buf, "tabstop", max_len + 2)
-
+  api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
 
   if move_cursor_to ~= nil then
     api.nvim_win_set_cursor(0, {move_cursor_to, 0})

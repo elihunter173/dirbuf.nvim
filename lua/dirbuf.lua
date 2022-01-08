@@ -1,22 +1,21 @@
 local api = vim.api
 local uv = vim.loop
 
-local parser = require("dirbuf.parser")
-local planner = require("dirbuf.planner")
+local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
 local FState = fs.FState
+local parser = require("dirbuf.parser")
+local planner = require("dirbuf.planner")
 
 local M = {}
 
 local CURRENT_BUFFER = 0
 
--- Default config settings
-local config = {
-  show_hidden = true,
-}
-
 function M.setup(opts)
-  config = vim.tbl_deep_extend("force", config, opts or {})
+  local err = config.update(opts)
+  if err ~= nil then
+    api.nvim_err_writeln("dirbuf.setup: " .. err)
+  end
 end
 
 local function normalize_dir(path)
@@ -41,7 +40,7 @@ local function set_dirbuf_opts(buf)
 
   local ok, _ = pcall(api.nvim_buf_get_var, buf, "dirbuf_show_hidden")
   if not ok then
-    api.nvim_buf_set_var(buf, "dirbuf_show_hidden", config.show_hidden)
+    api.nvim_buf_set_var(buf, "dirbuf_show_hidden", config.get("show_hidden"))
   end
 end
 
