@@ -19,9 +19,21 @@ local function hash(str)
   return string.format("%08x", h % HASH_MAX)
 end
 
+-- This was borrowed from util.lua in packer.nvim
+if jit ~= nil then
+  M.is_windows = jit.os == "Windows"
+else
+  M.is_windows = package.config:sub(1, 1) == "\\"
+end
+if M.is_windows then
+  M.path_separator = "\\"
+else
+  M.path_separator = "/"
+end
+
 function M.join(...)
   local paths = {...}
-  return table.concat(paths, "/")
+  return table.concat(paths, M.path_separator)
 end
 
 function M.temppath()
