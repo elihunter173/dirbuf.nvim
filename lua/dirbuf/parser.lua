@@ -1,11 +1,16 @@
-local api = vim.api
 local uv = vim.loop
 
-local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
 local FState = fs.FState
 
 local M = {}
+
+--[[
+local record Dirbuf
+  dir: string
+  fstates: {string: FState}
+end
+--]]
 
 -- The language of valid dirbuf lines is regular, so normally I would use a
 -- regular expression. However, Lua doesn't have a proper regex engine, just
@@ -89,34 +94,32 @@ function M.line(line)
   return nil, dispname, hash
 end
 
--- fill_dirbuf fills buffer `buf` with the contents of its corresponding
--- directory. `buf` must have the name of a valid directory and its contents
--- must be a valid dirbuf.
---
--- If `on_fname` is set, then the cursor will be put on the line corresponding
--- to `on_fname`.
---
--- Returns: err
-function M.fill_dirbuf(buf, on_fname)
-  local dir = api.nvim_buf_get_name(buf)
-  local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
+function M.write_dirbuf(dirbuf)
+  local buf_lines = {}
+  local max_len = 0
+  for hash, fstate in pairs(dirbuf.fstates) do
+    local dispname = fstate:dispname()
+    local dispname_esc = dispname:gsub("\\", "\\\\"):gsub("\t", "\\t")
+    if #dispname_esc > max_len then
+      max_len = #dispname_esc
+    end
+    table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
+  end
+  table.sort(buf_lines)
+  return buf_lines, max_len
+end
 
-  local move_cursor_to = nil
+function M.create_dirbuf(dir, show_hidden)
+  local dirbuf = {
+    dir = dir,
+    fstates = {},
+  }
 
   local handle, err, _ = uv.fs_scandir(dir)
   if err ~= nil then
     return err
   end
 
-  -- Fill out buffer
-  -- Stores file info by hash
-  local fstates = {}
-  -- Stores (fname_esc, padding, hash) tuples which we will join into strings
-  -- later to form the buffer's lines. We fill in the padding at the end to
-  -- line up the hashes.
-  local buf_lines = {}
-  -- Used to we can make all the hashes line up
-  local max_len = 0
   while true do
     local fname, ftype = uv.fs_scandir_next(handle)
     if fname == nil then
@@ -128,41 +131,17 @@ function M.fill_dirbuf(buf, on_fname)
 
     local fstate = FState.new(fname, dir, ftype)
     local hash = fstate:hash()
-    if fstates[hash] ~= nil then
+    if dirbuf.fstates[hash] ~= nil then
       -- This should never happen
       error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash,
-                          fstates[hash].path, fstate.path))
+                          dirbuf.fstates[hash].path, fstate.path))
     end
-    fstates[hash] = fstate
-
-    local dispname = fstate:dispname()
-    local dispname_esc = dispname:gsub("\\", "\\\\"):gsub("\t", "\\t")
-    if #dispname_esc > max_len then
-      max_len = #dispname_esc
-    end
-    table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
-
-    if fstate.fname == on_fname then
-      move_cursor_to = #buf_lines
-    end
+    dirbuf.fstates[hash] = fstate
 
     ::continue::
   end
-  api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
-  api.nvim_buf_set_var(buf, "dirbuf", fstates)
 
-  -- Us filling the buffer counts as modifying it
-  -- TODO: Make length configurable
-  api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
-
-  if move_cursor_to ~= nil then
-    api.nvim_win_set_cursor(0, {move_cursor_to, 0})
-  end
-
-  -- Us filling the buffer counts as modifying it
-  api.nvim_buf_set_option(buf, "modified", false)
-
-  return nil
+  return nil, dirbuf
 end
 
 function M.test()

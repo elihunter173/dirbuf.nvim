@@ -29,16 +29,11 @@ local enum Progress
 end
 --]]
 
--- TODO: Make this so it just works off of a previous dirbuf and a list of new
--- lines? Only if unit testing with buffers is a pain.
-function M.build_changes(buf)
-  -- Parse the dirbuf into
-  local dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
-  local dir = api.nvim_buf_get_name(buf)
-
+-- TODO: I wish I didn't just store lines, but I'm not sure How to better do it
+function M.new_build_changes(dirbuf, lines)
   local new_files = {}
   local change_map = {}
-  for _, fstate in pairs(dirbuf) do
+  for _, fstate in pairs(dirbuf.fstates) do
     change_map[fstate.fname] = {
       current_fstate = fstate,
       stays = false,
@@ -49,7 +44,7 @@ function M.build_changes(buf)
   -- Just to ensure we don't reuse fnames
   local used_fnames = {}
   -- Go through every line and build changes
-  for lnum, line in ipairs(api.nvim_buf_get_lines(buf, 0, -1, true)) do
+  for lnum, line in ipairs(lines) do
     local err, dispname, hash = parser.line(line)
     if err ~= nil then
       return string.format("Line %d: %s", lnum, err)
@@ -58,7 +53,7 @@ function M.build_changes(buf)
       goto continue
     end
 
-    local dst_fstate = FState.from_dispname(dispname, dir)
+    local dst_fstate = FState.from_dispname(dispname, dirbuf.dir)
 
     if used_fnames[dst_fstate.fname] ~= nil then
       return string.format("Line %d: Duplicate name '%s'", lnum, dispname)
@@ -68,7 +63,7 @@ function M.build_changes(buf)
       table.insert(new_files, dst_fstate)
 
     else
-      local current_fstate = dirbuf[hash]
+      local current_fstate = dirbuf.fstates[hash]
       if current_fstate.ftype ~= dst_fstate.ftype then
         return string.format("line %d: cannot change ftype %s -> %s", lnum,
                              current_fstate.ftype, dst_fstate.ftype)
@@ -86,6 +81,13 @@ function M.build_changes(buf)
   end
 
   return nil, {change_map = change_map, new_files = new_files}
+end
+
+function M.build_changes(buf)
+  -- Parse the dirbuf into
+  local dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
+  local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+  return M.new_build_changes(dirbuf, lines)
 end
 
 local function resolve_change(plan, change_map, change)

@@ -11,6 +11,43 @@ local M = {}
 
 local CURRENT_BUFFER = 0
 
+-- fill_dirbuf fills buffer `buf` with the contents of its corresponding
+-- directory. `buf` must have the name of a valid directory and its contents
+-- must be a valid dirbuf.
+--
+-- If `on_dispname` is set, then the cursor will be put on the line
+-- corresponding to `on_dispname`.
+--
+-- Returns: err
+local function fill_dirbuf(buf, on_dispname)
+  local dir = api.nvim_buf_get_name(buf)
+  local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
+
+  local err, dirbuf = parser.create_dirbuf(dir, show_hidden)
+  if err ~= nil then
+    return err
+  end
+
+  local buf_lines, max_len = parser.write_dirbuf(dirbuf)
+  api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
+  api.nvim_buf_set_var(buf, "dirbuf", dirbuf)
+  api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
+
+  if on_dispname ~= nil then
+    for lnum, line in ipairs(buf_lines) do
+      if line:sub(1, #on_dispname) == on_dispname then
+        api.nvim_win_set_cursor(0, {lnum, 0})
+        break
+      end
+    end
+  end
+
+  -- Us filling the buffer counts as modifying it
+  api.nvim_buf_set_option(buf, "modified", false)
+
+  return nil
+end
+
 function M.setup(opts)
   local err = config.update(opts)
   if err ~= nil then
@@ -18,18 +55,14 @@ function M.setup(opts)
   end
 end
 
-local function normalize_dir(path)
+-- Convert a directory path to its absolute path and a non-directory path into
+-- the absolute path of its parent directory
+local function directify(path)
   if vim.fn.isdirectory(path) == 1 then
-    -- `dir .. "/"` fixes the issue where ".." appears in the filepath if you
-    -- do dirbuf.open(".."), but it makes "/" become "//"
-    if path ~= "/" then
-      return vim.fn.fnamemodify(path .. "/", ":p")
-    else
-      return "/"
-    end
+    return vim.fn.fnamemodify(path, ":p")
   else
     -- Return the path with the head (i.e. file) stripped off
-    return vim.fn.fnamemodify(path, ":h")
+    return vim.fn.fnamemodify(path, ":h:p")
   end
 end
 
@@ -46,27 +79,33 @@ end
 
 -- This buffer must be the currently focused buffer
 function M.edit_dirbuf(buf, name)
-  local dir = normalize_dir(name)
+  local dir = directify(name)
   api.nvim_buf_set_name(buf, dir)
 
   set_dirbuf_opts(buf)
-  parser.fill_dirbuf(buf)
+  fill_dirbuf(buf)
 end
 
 function M.open(path)
   if path == "" then
     path = "."
   end
-  local dir = normalize_dir(path)
+  local dir = directify(path)
 
-  -- This is really hard to understand. What I want is to get the current
-  -- buffer's name and get the basepath of it. Ideally, expand("%:t") would
-  -- work but if you are in a directory (ends with a /), then it returns
-  -- nothing. Therefore, we have to do a hack to get the directory by looking
-  -- at the parent, stripping the slash, and then getting the tail.
-  local old_fname = vim.fn.expand("%:t")
-  if old_fname == "" then
-    old_fname = vim.fn.expand("%:p:h:t")
+  -- Find dispname of current path
+  local dispname = nil
+  local current_path = vim.fn.expand("%")
+  if current_path ~= "" then
+    local stat, err = uv.fs_lstat(current_path)
+    if stat == nil then
+      api.nvim_err_writeln(err)
+      return
+    end
+
+    local resolved_path
+    resolved_path, err = uv.fs_realpath(current_path)
+    local fname = vim.fn.fnamemodify(resolved_path, ":t")
+    dispname = fs.fname_to_dispname(fname, stat.type)
   end
 
   local buf = vim.fn.bufnr("^" .. dir .. "$")
@@ -81,7 +120,7 @@ function M.open(path)
   end
 
   api.nvim_win_set_buf(0, buf)
-  parser.fill_dirbuf(buf, old_fname)
+  fill_dirbuf(buf, dispname)
 end
 
 function M.enter()
@@ -92,7 +131,7 @@ function M.enter()
     api.nvim_err_writeln(err)
     return
   end
-  local fname = vim.b.dirbuf[hash].fname
+  local fname = vim.b.dirbuf.fstates[hash].fname
 
   if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
     api.nvim_err_writeln(string.format(
@@ -113,7 +152,7 @@ local function check_dirbuf(buf)
     return err
   end
 
-  local fstates = api.nvim_buf_get_var(buf, "dirbuf")
+  local dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
   local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
   while true do
     local fname, ftype = uv.fs_scandir_next(handle)
@@ -125,7 +164,7 @@ local function check_dirbuf(buf)
     end
 
     local fstate = FState.new(fname, dir, ftype)
-    local snapshot = fstates[fstate:hash()]
+    local snapshot = dirbuf.fstates[fstate:hash()]
     if snapshot == nil or snapshot.fname ~= fname or snapshot.ftype ~= ftype then
       return
           "Snapshot out of date with current directory. Run :edit! to refresh"
@@ -172,8 +211,7 @@ function M.sync()
     api.nvim_err_writeln(err)
     return
   end
-  local fname = fs.dispname_to_fname(dispname)
-  parser.fill_dirbuf(CURRENT_BUFFER, fname)
+  fill_dirbuf(CURRENT_BUFFER, dispname)
 end
 
 function M.toggle_hide()
@@ -184,8 +222,7 @@ function M.toggle_hide()
     api.nvim_err_writeln(err)
     return
   end
-  local fname = fs.dispname_to_fname(dispname)
-  parser.fill_dirbuf(CURRENT_BUFFER, fname)
+  fill_dirbuf(CURRENT_BUFFER, dispname)
 end
 
 return M

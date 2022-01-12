@@ -50,20 +50,6 @@ local enum FType
   "block"
 end
 --]]
-function M.dispname_to_fname(dispname)
-  if dispname == nil then
-    return nil
-  end
-
-  local last_char = dispname:sub(-1, -1)
-  if last_char == "/" or last_char == "@" or last_char == "|" or last_char ==
-      "=" or last_char == "%" or last_char == "#" then
-    return dispname:sub(0, -2)
-  else
-    return dispname
-  end
-end
-
 function FState.from_dispname(dispname, parent)
   -- This is the last byte as a string, which is okay because all our
   -- classifiers are single characters
@@ -85,27 +71,31 @@ function FState.from_dispname(dispname, parent)
   end
 end
 
+function M.fname_to_dispname(fname, ftype)
+  if ftype == "file" then
+    return fname
+  elseif ftype == "directory" then
+    return fname .. "/"
+  elseif ftype == "link" then
+    return fname .. "@"
+  elseif ftype == "fifo" then
+    return fname .. "|"
+  elseif ftype == "socket" then
+    return fname .. "="
+  elseif ftype == "char" then
+    return fname .. "%"
+  elseif ftype == "block" then
+    return fname .. "#"
+  else
+    error(string.format("Unrecognized ftype '%s'. This should be impossible",
+                        vim.inspect(ftype)))
+  end
+end
+
 -- Add the appropriate classifier for the given ftype. These classifiers are
 -- taken from `ls --classify` and zsh's tab completion
 function FState:dispname()
-  if self.ftype == "file" then
-    return self.fname
-  elseif self.ftype == "directory" then
-    return self.fname .. "/"
-  elseif self.ftype == "link" then
-    return self.fname .. "@"
-  elseif self.ftype == "fifo" then
-    return self.fname .. "|"
-  elseif self.ftype == "socket" then
-    return self.fname .. "="
-  elseif self.ftype == "char" then
-    return self.fname .. "%"
-  elseif self.ftype == "block" then
-    return self.fname .. "#"
-  else
-    error(string.format("Unrecognized ftype '%s'. This should be impossible",
-                        vim.inspect(self.ftype)))
-  end
+  return M.fname_to_dispname(self.fname, self.ftype)
 end
 
 function FState:hash()
