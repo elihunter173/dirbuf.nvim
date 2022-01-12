@@ -31,6 +31,10 @@ else
   M.path_separator = "/"
 end
 
+function M.is_hidden(fname)
+  return fname:sub(1, 1) == "."
+end
+
 function M.join(...)
   local paths = {...}
   return table.concat(paths, M.path_separator)

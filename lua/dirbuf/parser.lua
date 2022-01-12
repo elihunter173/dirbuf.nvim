@@ -128,7 +128,7 @@ function M.create_dirbuf(dir, show_hidden)
     if fname == nil then
       break
     end
-    if not show_hidden and fname:sub(1, 1) == "." then
+    if not show_hidden and fs.is_hidden(fname) then
       goto continue
     end
 

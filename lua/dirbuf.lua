@@ -20,10 +20,15 @@ local CURRENT_BUFFER = 0
 --
 -- Returns: err
 local function fill_dirbuf(buf, on_dispname)
-  local dir = api.nvim_buf_get_name(buf)
+  local dir, err = uv.fs_realpath(api.nvim_buf_get_name(buf))
+  if dir == nil then
+    return err
+  end
+
   local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
 
-  local err, dirbuf = parser.create_dirbuf(dir, show_hidden)
+  local dirbuf
+  err, dirbuf = parser.create_dirbuf(dir, show_hidden)
   if err ~= nil then
     return err
   end
@@ -33,9 +38,12 @@ local function fill_dirbuf(buf, on_dispname)
   api.nvim_buf_set_var(buf, "dirbuf", dirbuf)
   api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
 
+  -- TODO: I would prefer to use fnames
   if on_dispname ~= nil then
+    -- We use tab as a separator
+    local to_find = on_dispname .. "\t"
     for lnum, line in ipairs(buf_lines) do
-      if line:sub(1, #on_dispname) == on_dispname then
+      if line:sub(1, #to_find) == to_find then
         api.nvim_win_set_cursor(0, {lnum, 0})
         break
       end
@@ -55,17 +63,6 @@ function M.setup(opts)
   end
 end
 
--- Convert a directory path to its absolute path and a non-directory path into
--- the absolute path of its parent directory
-local function directify(path)
-  if vim.fn.isdirectory(path) == 1 then
-    return vim.fn.fnamemodify(path, ":p")
-  else
-    -- Return the path with the head (i.e. file) stripped off
-    return vim.fn.fnamemodify(path, ":h:p")
-  end
-end
-
 local function set_dirbuf_opts(buf)
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
@@ -77,9 +74,18 @@ local function set_dirbuf_opts(buf)
   end
 end
 
+local function directify(path)
+  if vim.fn.isdirectory(path) == 1 then
+    return vim.fn.fnamemodify(path, ":p")
+  else
+    -- Return the path with the head (i.e. file) stripped off
+    return vim.fn.fnamemodify(path, ":h:p")
+  end
+end
+
 -- This buffer must be the currently focused buffer
-function M.edit_dirbuf(buf, name)
-  local dir = directify(name)
+function M.edit_dirbuf(buf, path)
+  local dir = directify(path)
   api.nvim_buf_set_name(buf, dir)
 
   set_dirbuf_opts(buf)
@@ -92,7 +98,8 @@ function M.open(path)
   end
   local dir = directify(path)
 
-  -- Find dispname of current path
+  -- Find dispname of current path so we can position our cursor on it
+  -- TODO: It would be nice if we could just use fname
   local dispname = nil
   local current_path = vim.fn.expand("%")
   if current_path ~= "" then
@@ -124,9 +131,16 @@ function M.open(path)
 end
 
 function M.enter()
-  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
+  local bufname = api.nvim_buf_get_name(CURRENT_BUFFER)
+  local dir, err = uv.fs_realpath(bufname)
+  if dir == nil then
+    api.nvim_err_writeln(err)
+    return
+  end
+
   local line = api.nvim_get_current_line()
-  local err, _, hash = parser.line(line)
+  local hash
+  err, _, hash = parser.line(line)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -146,31 +160,21 @@ end
 
 -- Ensure that the directory has not changed since our last snapshot
 local function check_dirbuf(buf)
-  local dir = api.nvim_buf_get_name(buf)
-  local handle, err, _ = uv.fs_scandir(dir)
-  if err ~= nil then
+  local saved_dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
+
+  local dir, err = uv.fs_realpath(api.nvim_buf_get_name(buf))
+  if dir == nil then
     return err
   end
 
-  local dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
   local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
-  while true do
-    local fname, ftype = uv.fs_scandir_next(handle)
-    if fname == nil then
-      break
-    end
-    if show_hidden and fname:sub(1, 1) == "." then
-      goto continue
-    end
+  local err, current_dirbuf = parser.create_dirbuf(dir, show_hidden)
+  if err ~= nil then
+    return "Error while checking: " .. err
+  end
 
-    local fstate = FState.new(fname, dir, ftype)
-    local snapshot = dirbuf.fstates[fstate:hash()]
-    if snapshot == nil or snapshot.fname ~= fname or snapshot.ftype ~= ftype then
-      return
-          "Snapshot out of date with current directory. Run :edit! to refresh"
-    end
-
-    ::continue::
+  if not vim.deep_equal(saved_dirbuf, current_dirbuf) then
+      return "Snapshot out of date with current directory. Run :edit! to refresh"
   end
 
   return nil
