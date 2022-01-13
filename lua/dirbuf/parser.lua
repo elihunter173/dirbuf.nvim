@@ -105,7 +105,10 @@ function M.write_dirbuf(dirbuf)
     end
     table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
   end
-  table.sort(buf_lines)
+  table.sort(buf_lines, function(l, r)
+    -- Case insensitive sorting
+    return l:lower() < r:lower()
+  end)
   return buf_lines, max_len
 end
 
