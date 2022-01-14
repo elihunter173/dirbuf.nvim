@@ -136,18 +136,25 @@ function M.actions.create(args)
     return string.format("'%s' already exists", fstate.ftype, fstate.path)
   end
 
-  local ok
   if fstate.ftype == "file" then
-    -- append instead of write to be non-dstructive
-    ok = uv.fs_open(fstate.path, "a", DEFAULT_FILE_MODE)
+    local fd, err = uv.fs_open(fstate.path, "w", DEFAULT_FILE_MODE)
+    if fd == nil then
+      return err
+    end
+    local success
+    success, err = uv.fs_close(fd)
+    if not success then
+      return err
+    end
+
   elseif fstate.ftype == "directory" then
-    ok = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
+    local success, err = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
+    if not success then
+      return err
+    end
+
   else
     return string.format("Cannot create %s", fstate.ftype)
-  end
-
-  if not ok then
-    return string.format("Create failed for '%s'", fstate.path)
   end
 
   return nil
