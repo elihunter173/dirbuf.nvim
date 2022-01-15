@@ -110,6 +110,11 @@ function M.open(path)
 
     local resolved_path
     resolved_path, err = uv.fs_realpath(current_path)
+    if resolved_path == nil then
+      api.nvim_err_writeln(err)
+      return
+    end
+
     local fname = vim.fn.fnamemodify(resolved_path, ":t")
     dispname = fs.fname_to_dispname(fname, stat.type)
   end
