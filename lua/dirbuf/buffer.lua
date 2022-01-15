@@ -18,7 +18,7 @@ end
 -- so I manually build the parser. It also gives nicer error messages.
 --
 -- Returns err, dispname, hash
-function M.line(line)
+function M.parse_line(line)
   local string_builder = {}
   -- We store this in a local so we can skip characters
   local chars = line:gmatch(".")

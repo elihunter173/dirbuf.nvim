@@ -3,8 +3,7 @@ local uv = vim.loop
 
 local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
-local FState = fs.FState
-local parser = require("dirbuf.parser")
+local buffer = require("dirbuf.buffer")
 local planner = require("dirbuf.planner")
 
 local M = {}
@@ -28,12 +27,12 @@ local function fill_dirbuf(buf, on_dispname)
   local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
 
   local dirbuf
-  err, dirbuf = parser.create_dirbuf(dir, show_hidden)
+  err, dirbuf = buffer.create_dirbuf(dir, show_hidden)
   if err ~= nil then
     return err
   end
 
-  local buf_lines, max_len = parser.write_dirbuf(dirbuf)
+  local buf_lines, max_len = buffer.write_dirbuf(dirbuf)
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
   api.nvim_buf_set_var(buf, "dirbuf", dirbuf)
   api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
@@ -140,7 +139,7 @@ function M.enter()
 
   local line = api.nvim_get_current_line()
   local hash
-  err, _, hash = parser.line(line)
+  err, _, hash = buffer.parse_line(line)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -168,7 +167,8 @@ local function check_dirbuf(buf)
   end
 
   local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
-  local err, current_dirbuf = parser.create_dirbuf(dir, show_hidden)
+  local current_dirbuf
+  err, current_dirbuf = buffer.create_dirbuf(dir, show_hidden)
   if err ~= nil then
     return "Error while checking: " .. err
   end
@@ -210,7 +210,7 @@ function M.sync()
 
   -- We want to ensure that we are still hovering on the same line
   local dispname
-  err, dispname, _ = parser.line(api.nvim_get_current_line())
+  err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -221,7 +221,7 @@ end
 function M.toggle_hide()
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- We want to ensure that we are still hovering on the same line
-  local err, dispname, _ = parser.line(api.nvim_get_current_line())
+  local err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
