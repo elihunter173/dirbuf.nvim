@@ -119,7 +119,7 @@ function M.create_dirbuf(dir, show_hidden)
   }
 
   local handle, err, _ = uv.fs_scandir(dir)
-  if err ~= nil then
+  if handle == nil then
     return err
   end
 

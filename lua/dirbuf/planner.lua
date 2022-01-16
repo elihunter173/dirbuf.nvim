@@ -64,7 +64,7 @@ function M.build_changes(dirbuf, lines)
     else
       local current_fstate = dirbuf.fstates[hash]
       if current_fstate.ftype ~= dst_fstate.ftype then
-        return string.format("line %d: cannot change ftype %s -> %s", lnum,
+        return string.format("line %d: cannot change %s -> %s", lnum,
                              current_fstate.ftype, dst_fstate.ftype)
       end
 
