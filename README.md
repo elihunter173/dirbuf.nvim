@@ -1,34 +1,56 @@
-# WIP Note
-
-This plugin is a work in progress. It isn't feature complete and has bugs.
-However, it is workable enough that I've started dogfooding it.
-
-Here is a quick list of features implemented.
-
-* Directory Viewing:
-  * [x] Dirbuf refreshing after changes.
-  * [x] Opening directories.
-  * [x] Opening files.
-  * [x] Hiding hidden files.
-  * [ ] Previewing files.
-  * [ ] Subdirectories as "folds".
-* Directory Modification:
-  * [x] Basic file deleting.
-  * [x] Basic file copying. (As long as the names don't collide with any other
-    files, even if those files are moved.)
-  * [x] Basic file renaming. (Same note as above.)
-  * [x] Creating new files.
-  * [x] Order dependent changes (e.g. renaming `a -> b` and `b -> c`).
-  * [x] Circular renaming.
-  * [ ] Concurrent modification execution.
-* Misc:
-  * [x] An easy way to refresh dirbufs.
-  * [x] Cleaner errors messages.
-  * [x] Docs.
-
 # dirbuf.nvim
 
 A directory buffer for Neovim, inspired by [dirvish.vim] and [vidir].
+
+## What is Dirbuf?
+
+Dirbuf was created with the idea that you should be able to manipulate your
+filesystem just like you manipulate text.
+
+So to create a new file, add a new line with the file's name. You can also add
+a `/` to make it a directory instead. To delete a file or directory, delete its
+line. To copy, copy its line and give it a new name. To rename, change its
+name.
+
+You can make as many changes as you like. They won't take effect until you
+save.
+
+https://user-images.githubusercontent.com/42009212/149638284-c944bbcc-bb25-4bd5-b8a3-994d03c79d95.mp4
+
+## Installation
+
+Requires [Neovim 0.5](https://github.com/neovim/neovim/releases/tag/v0.5.0) or
+higher.
+
+* [vim-plug]: `Plug "elihunter173/dirbuf.nvim"`
+* [packer.nvim]: `use "elihunter173/dirbuf.nvim"`
+
+## Usage
+
+Run the command `:Dirbuf` to open a directory buffer for your current
+directory. Press `-` in any buffer to open a directory buffer for its parent.
+Editing a directory will also open up a directory buffer, overriding Netrw.
+
+Inside a directory buffer, there are the following keybindings:
+* `<CR>`: Open the file or directory at the cursor.
+* `gh`: Toggle showing hidden files (i.e. dot files).
+
+See `:help dirbuf.txt` for more info.
+
+## Configuration
+
+Configuration is not necessary for Dirbuf to work. But for those that want to
+override the default config, the following options are available.
+
+```lua
+require("dirbuf").setup {
+    hash_padding = 2,
+    show_hidden = true,
+}
+```
+
+Read the [documentation](/doc/dirbuf.txt) for more information (`:help
+dirbuf-options`).
 
 ## Development
 
@@ -38,9 +60,11 @@ Run the following command to run the tests.
 $ make test
 ```
 
-This will download [plenary.vim]'s test harness and run the `*_spec.lua` tests in
-`tests/`.
+This will download [plenary.nvim]'s test harness and run the `*_spec.lua` tests
+in `tests/`.
 
 [dirvish.vim]: https://github.com/justinmk/vim-dirvish
+[packer.nvim]: https://github.com/wbthomason/packer.nvim
+[plenary.nvim]: https://github.com/nvim-lua/plenary.nvim
 [vidir]: https://github.com/trapd00r/vidir
-[plenary.vim]: https://github.com/nvim-lua/plenary.nvim
+[vim-plug]: https://github.com/junegunn/vim-plug

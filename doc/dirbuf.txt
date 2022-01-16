@@ -40,15 +40,17 @@ MAPPINGS                                                       *dirbuf-mappings*
 
 Global ~
     <Plug>(dirbuf_up)
-    -               Opens the current file directory or the [count]th parent.
+    -               Opens the current file's directory or the [count]th parent
+                    directory.
 
 Buffer-local (filetype=dirbuf) ~
     <Plug>(dirbuf_up)
-    -               Opens the [count]th parent directory.
+    -               Opens the current file's directory or the [count]th parent
+                    directory.
     <Plug>(dirbuf_enter)
     <CR>            Opens file or directory at cursor.
     <Plug>(dirbuf_toggle_hide)
-    gh              Toggles whether hidden files (i.e. "dot files") are
+    gh              Toggles whether hidden files (i.e. dot files) are
                     displayed.
 
 ==============================================================================
