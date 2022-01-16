@@ -26,7 +26,7 @@ syntax match DirbufBlock /^\([^\\\t]\|\\[\\t]\)\+#/me=e-1
 highlight link DifbufFile Normal
 exe 'highlight DirbufDirectory ctermbg=4 gui=bold guifg='.g:terminal_color_4
 exe 'highlight DirbufLink ctermbg=6 guifg='.g:terminal_color_6
-exe 'highlight DirbufFifo ctermbg=3 guifg='.g:terminal_color_2
+exe 'highlight DirbufFifo ctermbg=2 guifg='.g:terminal_color_2
 exe 'highlight DirbufSocket ctermbg=5 guifg='.g:terminal_color_5
 exe 'highlight DirbufChar ctermbg=3 gui=bold guifg='.g:terminal_color_3
 exe 'highlight DirbufBlock ctermbg=3 gui=bold guifg='.g:terminal_color_3
