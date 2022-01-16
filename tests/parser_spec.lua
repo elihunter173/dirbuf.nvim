@@ -1,4 +1,5 @@
 local buffer = require("dirbuf.buffer")
+
 local FState = require("dirbuf.fs").FState
 
 local function fst(fname, ftype)

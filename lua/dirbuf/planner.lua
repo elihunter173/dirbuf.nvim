@@ -2,6 +2,7 @@ local api = vim.api
 
 local buffer = require("dirbuf.buffer")
 local fs = require("dirbuf.fs")
+
 local FState = fs.FState
 local create, copy, delete, move = fs.plan.create, fs.plan.copy, fs.plan.delete,
                                    fs.plan.move

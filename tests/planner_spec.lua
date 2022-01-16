@@ -1,5 +1,6 @@
 local fs = require("dirbuf.fs")
 local planner = require("dirbuf.planner")
+
 local FState = fs.FState
 
 local function fst(dispname)

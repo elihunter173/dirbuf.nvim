@@ -1,9 +1,9 @@
 local api = vim.api
 local uv = vim.loop
 
+local buffer = require("dirbuf.buffer")
 local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
-local buffer = require("dirbuf.buffer")
 local planner = require("dirbuf.planner")
 
 local M = {}
