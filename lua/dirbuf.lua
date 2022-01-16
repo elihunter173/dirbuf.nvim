@@ -179,7 +179,7 @@ local function check_dirbuf(buf)
   end
 
   if not vim.deep_equal(saved_dirbuf, current_dirbuf) then
-      return "Snapshot out of date with current directory. Run :edit! to refresh"
+    return "Snapshot out of date with current directory. Run :edit! to refresh"
   end
 
   return nil
@@ -198,8 +198,10 @@ function M.sync()
 
   -- Parse the buffer to determine what we need to do get directory and dirbuf
   -- in sync
+  local dirbuf = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf")
+  local lines = api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)
   local changes
-  err, changes = planner.build_changes(CURRENT_BUFFER)
+  err, changes = planner.build_changes(dirbuf, lines)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return

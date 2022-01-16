@@ -1,5 +1,3 @@
-local api = vim.api
-
 local buffer = require("dirbuf.buffer")
 local fs = require("dirbuf.fs")
 
@@ -31,7 +29,7 @@ end
 --]]
 
 -- TODO: I wish I didn't just store lines, but I'm not sure How to better do it
-function M.new_build_changes(dirbuf, lines)
+function M.build_changes(dirbuf, lines)
   local new_files = {}
   local change_map = {}
   for _, fstate in pairs(dirbuf.fstates) do
@@ -82,13 +80,6 @@ function M.new_build_changes(dirbuf, lines)
   end
 
   return nil, {change_map = change_map, new_files = new_files}
-end
-
-function M.build_changes(buf)
-  -- Parse the dirbuf into
-  local dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
-  local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-  return M.new_build_changes(dirbuf, lines)
 end
 
 local function resolve_change(plan, change_map, change)
