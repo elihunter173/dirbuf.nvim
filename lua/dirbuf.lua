@@ -84,6 +84,8 @@ end
 
 -- This buffer must be the currently focused buffer
 function M.edit_dirbuf(buf, path)
+  -- Vimscript hands us a string
+  buf = tonumber(buf)
   local dir = directify(path)
   api.nvim_buf_set_name(buf, dir)
 
