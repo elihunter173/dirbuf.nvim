@@ -75,6 +75,9 @@ dirbuf.setup({opts})                                            *dirbuf-setup()*
         require('dirbuf').setup {
             hash_padding = 2,
             show_hidden = true,
+            sort_order = function(l, r)
+                return l.fname:lower() < r.fname:lower()
+            end,
         }
 <
 
@@ -89,6 +92,26 @@ OPTIONS                                                         *dirbuf-options*
     Whether Dirbuf should display hidden files (i.e. "dot files") by default
     when opening new directory buffers. This can be changed locally per-buffer
     with the `gh` mapping.
+
+|sort_order| (default: case-insensitive sorting by fnames)
+    What order Dirbuf should sort the directory buffer in when it is created
+    and refreshed.
+
+    This must be a comparison function which takes two tables {left} and
+    {right}, each describing a filesystem entry, which returns `true` when
+    {left} should appear before (i.e. above) {right} in the directory buffer.
+
+    Both of the tables {left} and {right} have the following fields
+    Fields: ~
+       {fname}  `string` containing the literal, unescaped name of the
+                filesystem entry without any suffixes (e.g. a directory
+                example/ would have an fname of "example")
+       {ftype}  `string` describing the type of the filesystem entry, which
+                must be one of "file", "directory", "link", "fifo", "socket",
+                "char", or "block"
+       {path}   `string` containing the full path of the filesystem entry
+                using platform-specific directory separators (i.e. "\" on
+                Windows and "/" on Linux and MacOS) without a suffix
 
 ==============================================================================
 CREDITS                                                         *dirbuf-credits*

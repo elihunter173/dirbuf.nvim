@@ -1,5 +1,6 @@
 local uv = vim.loop
 
+local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
 local FState = fs.FState
 
@@ -95,9 +96,19 @@ function M.parse_line(line)
 end
 
 function M.write_dirbuf(dirbuf)
+  local ir = {}
+  for hash, fstate in pairs(dirbuf.fstates) do
+    table.insert(ir, {fstate, hash})
+  end
+  local comp = config.get("sort_order")
+  table.sort(ir, function(l, r)
+    return comp(l[1], r[1])
+  end)
+
   local buf_lines = {}
   local max_len = 0
-  for hash, fstate in pairs(dirbuf.fstates) do
+  for _, fstate_hash in ipairs(ir) do
+    local fstate, hash = unpack(fstate_hash)
     local dispname = fstate:dispname()
     local dispname_esc = dispname:gsub("\\", "\\\\"):gsub("\t", "\\t")
     if #dispname_esc > max_len then
@@ -105,18 +116,12 @@ function M.write_dirbuf(dirbuf)
     end
     table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
   end
-  table.sort(buf_lines, function(l, r)
-    -- Case insensitive sorting
-    return l:lower() < r:lower()
-  end)
+
   return buf_lines, max_len
 end
 
 function M.create_dirbuf(dir, show_hidden)
-  local dirbuf = {
-    dir = dir,
-    fstates = {},
-  }
+  local dirbuf = {dir = dir, fstates = {}}
 
   local handle, err, _ = uv.fs_scandir(dir)
   if handle == nil then

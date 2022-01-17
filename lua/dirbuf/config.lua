@@ -1,7 +1,14 @@
 local M = {}
 
 -- Default config settings
-local conf = {hash_padding = 2, show_hidden = true}
+local conf = {
+  hash_padding = 2,
+  show_hidden = true,
+  sort_order = function(l, r)
+    -- Case insensitive comparison
+    return l.fname:lower() < r.fname:lower()
+  end,
+}
 
 function M.update(opts)
   if opts.hash_padding ~= nil then
@@ -17,7 +24,15 @@ function M.update(opts)
     if type(val) ~= "boolean" then
       return "`show_hidden` must be boolean, received " .. type(val)
     end
-    conf.show_hidden = opts.show_hidden
+    conf.show_hidden = val
+  end
+
+  if opts.sort_order ~= nil then
+    local val = opts.sort_order
+    if type(val) ~= "function" then
+      return "`sort_order` must be function, received " .. type(val)
+    end
+    conf.sort_order = val
   end
 
   return nil
