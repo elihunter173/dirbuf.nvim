@@ -16,13 +16,10 @@ if mapcheck('-', 'n') ==# '' && !hasmapto('<Plug>(dirbuf_up)', 'n')
   nmap - <Plug>(dirbuf_up)
 endif
 
-" Remove netrw directory handlers.
-if exists('#FileExplorer')
-  autocmd! FileExplorer
-endif
-
 augroup dirbuf
   autocmd!
+  " Remove netrw directory handlers.
+  autocmd VimEnter * if exists('#FileExplorer') | execute 'autocmd! FileExplorer *' | endif
   " Makes editing a directory open a dirbuf. We always re-init the dirbuf
   autocmd BufEnter * if isdirectory(expand('<afile>')) && !&modified
         \ | execute 'lua require"dirbuf".edit_dirbuf(vim.fn.expand("<abuf>"), vim.fn.expand("<afile>"))'
