@@ -24,12 +24,20 @@ syntax match DirbufBlock /^\([^\\\t]\|\\[\\t]\)\+#/me=e-1
 
 " Highlight each object according to its color in by ls --color=always
 highlight link DifbufFile Normal
-exe 'highlight DirbufDirectory ctermbg=4 gui=bold guifg='.g:terminal_color_4
-exe 'highlight DirbufLink ctermbg=6 guifg='.g:terminal_color_6
-exe 'highlight DirbufFifo ctermbg=2 guifg='.g:terminal_color_2
-exe 'highlight DirbufSocket ctermbg=5 guifg='.g:terminal_color_5
-exe 'highlight DirbufChar ctermbg=3 gui=bold guifg='.g:terminal_color_3
-exe 'highlight DirbufBlock ctermbg=3 gui=bold guifg='.g:terminal_color_3
+function s:SetColor(group_name, color_num)
+  if !exists('g:terminal_color_0')
+    execute 'highlight '.a:group_name.' ctermfg='.a:color_num
+  else
+    let color = get(g:, 'terminal_color_'.a:color_num)
+    execute 'highlight '.a:group_name.' ctermfg='.a:color_num.' gui=bold guifg='.color
+  endif
+endfunction
+call s:SetColor('DirbufDirectory', 4)
+call s:SetColor('DirbufLink', 6)
+call s:SetColor('DirbufFifo', 2)
+call s:SetColor('DirbufSocket', 5)
+call s:SetColor('DirbufChar', 3)
+call s:SetColor('DirbufBlock', 3)
 
 " We include `ms=s+1` to not highlight the tab
 syntax match DirbufHash /\t#\x\{8}\s*$/ms=s+1
