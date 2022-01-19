@@ -25,6 +25,18 @@ higher.
 * [vim-plug]: `Plug "elihunter173/dirbuf.nvim"`
 * [packer.nvim]: `use "elihunter173/dirbuf.nvim"`
 
+### Notice
+
+If you use [`nvim-tree.lua`](https://github.com/kyazdani42/nvim-tree.lua), you
+must disable the `:help nvim-tree.update_to_buf_dir` option. Otherwise, Dirbuf
+will fail to open directory buffers.
+
+```lua
+require("nvim-tree").setup {
+    update_to_buf_dir = { enable = false }
+}
+```
+
 ## Usage
 
 Run the command `:Dirbuf` to open a directory buffer for your current
