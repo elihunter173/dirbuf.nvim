@@ -28,7 +28,7 @@ local enum Progress
 end
 --]]
 
--- TODO: I wish I didn't just store lines, but I'm not sure How to better do it
+-- TODO: I wish I didn't just store lines, but I'm not sure how to better do it
 function M.build_changes(dirbuf, lines)
   local new_files = {}
   local change_map = {}

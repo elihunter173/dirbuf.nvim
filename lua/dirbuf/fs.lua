@@ -35,9 +35,13 @@ function M.is_hidden(fname)
   return fname:sub(1, 1) == "."
 end
 
-function M.join(...)
+function M.join_paths(...)
   local paths = {...}
   return table.concat(paths, M.path_separator)
+end
+
+function M.is_directory(path)
+  return vim.fn.isdirectory(path) == 1
 end
 
 function M.temppath()
@@ -48,7 +52,7 @@ M.FState = {}
 local FState = M.FState
 
 function FState.new(fname, parent, ftype)
-  local o = {fname = fname, path = M.join(parent, fname), ftype = ftype}
+  local o = {fname = fname, path = M.join_paths(parent, fname), ftype = ftype}
   setmetatable(o, {__index = FState})
   return o
 end
@@ -66,6 +70,20 @@ local enum FType
   "block"
 end
 --]]
+function M.dispname_to_fname(dispname)
+  if dispname == nil then
+    return nil
+  end
+
+  local last_char = dispname:sub(-1, -1)
+  if last_char == "/" or last_char == "@" or last_char == "|" or last_char ==
+      "=" or last_char == "%" or last_char == "#" then
+    return dispname:sub(0, -2)
+  else
+    return dispname
+  end
+end
+
 function FState.from_dispname(dispname, parent)
   -- This is the last byte as a string, which is okay because all our
   -- classifiers are single characters
@@ -173,8 +191,8 @@ local function cp(src_path, dst_path, ftype)
       if next_fname == nil then
         break
       end
-      err = cp(M.join(src_path, next_fname), M.join(dst_path, next_fname),
-               next_ftype)
+      err = cp(M.join_paths(src_path, next_fname),
+               M.join_paths(dst_path, next_fname), next_ftype)
       if err ~= nil then
         return err
       end
@@ -207,7 +225,7 @@ local function rm(path, ftype)
       if next_fname == nil then
         break
       end
-      local err = rm(M.join(path, next_fname), next_ftype)
+      local err = rm(M.join_paths(path, next_fname), next_ftype)
       if err ~= nil then
         return err
       end

@@ -95,7 +95,10 @@ function M.parse_line(line)
   return nil, dispname, hash
 end
 
-function M.write_dirbuf(dirbuf)
+function M.write_dirbuf(dirbuf, track_fname)
+  -- TODO: This would be cleaner if we stored dirbufs with an index instead of
+  -- a key that was sorted in sort_order to begin with. This would also prevent
+  -- the issue where hashes can collide
   local ir = {}
   for hash, fstate in pairs(dirbuf.fstates) do
     table.insert(ir, {fstate, hash})
@@ -104,6 +107,13 @@ function M.write_dirbuf(dirbuf)
   table.sort(ir, function(l, r)
     return comp(l[1], r[1])
   end)
+
+  local fname_line = nil
+  for lnum, fstate_hash in ipairs(ir) do
+    if fstate_hash[1].fname == track_fname then
+      fname_line = lnum
+    end
+  end
 
   local buf_lines = {}
   local max_len = 0
@@ -117,7 +127,7 @@ function M.write_dirbuf(dirbuf)
     table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
   end
 
-  return buf_lines, max_len
+  return buf_lines, max_len, fname_line
 end
 
 function M.create_dirbuf(dir, show_hidden)

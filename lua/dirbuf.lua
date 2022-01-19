@@ -14,11 +14,11 @@ local CURRENT_BUFFER = 0
 -- directory. `buf` must have the name of a valid directory and its contents
 -- must be a valid dirbuf.
 --
--- If `on_dispname` is set, then the cursor will be put on the line
--- corresponding to `on_dispname`.
+-- If `on_fname` is set, then the cursor will be put on the line corresponding
+-- to `on_fname`.
 --
 -- Returns: err
-local function fill_dirbuf(buf, on_dispname)
+local function fill_dirbuf(buf, on_fname)
   local dir, err = uv.fs_realpath(api.nvim_buf_get_name(buf))
   if dir == nil then
     return err
@@ -32,21 +32,13 @@ local function fill_dirbuf(buf, on_dispname)
     return err
   end
 
-  local buf_lines, max_len = buffer.write_dirbuf(dirbuf)
+  local buf_lines, max_len, fname_line = buffer.write_dirbuf(dirbuf, on_fname)
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
   api.nvim_buf_set_var(buf, "dirbuf", dirbuf)
   api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
 
-  -- TODO: I would prefer to use fnames
-  if on_dispname ~= nil then
-    -- We use tab as a separator
-    local to_find = on_dispname .. "\t"
-    for lnum, line in ipairs(buf_lines) do
-      if line:sub(1, #to_find) == to_find then
-        api.nvim_win_set_cursor(0, {lnum, 0})
-        break
-      end
-    end
+  if fname_line ~= nil then
+    api.nvim_win_set_cursor(0, {fname_line, 0})
   end
 
   -- Us filling the buffer counts as modifying it
@@ -74,7 +66,7 @@ local function set_dirbuf_opts(buf)
 end
 
 local function directify(path)
-  if vim.fn.isdirectory(path) == 1 then
+  if fs.is_directory(path) then
     return vim.fn.fnamemodify(path, ":p")
   else
     -- Return the path with the head (i.e. file) stripped off
@@ -99,26 +91,15 @@ function M.open(path)
   end
   local dir = directify(path)
 
-  -- Find dispname of current path so we can position our cursor on it
-  -- TODO: It would be nice if we could just use fname
-  local dispname = nil
+  -- Find fname of current path so we can position our cursor on it
   local current_path = vim.fn.expand("%")
-  if current_path ~= "" then
-    local stat, err = uv.fs_lstat(current_path)
-    if stat == nil then
-      api.nvim_err_writeln(err)
-      return
-    end
-
-    local resolved_path
-    resolved_path, err = uv.fs_realpath(current_path)
-    if resolved_path == nil then
-      api.nvim_err_writeln(err)
-      return
-    end
-
-    local fname = vim.fn.fnamemodify(resolved_path, ":t")
-    dispname = fs.fname_to_dispname(fname, stat.type)
+  local current_fname
+  if fs.is_directory(current_path) then
+    -- Doing :t on a directory results in an empty string because of the
+    -- trailing /, so we strip that off first with :h
+    current_fname = vim.fn.fnamemodify(current_path, ":h:t")
+  else
+    current_fname = vim.fn.fnamemodify(current_path, ":t")
   end
 
   local buf = vim.fn.bufnr("^" .. dir .. "$")
@@ -133,7 +114,7 @@ function M.open(path)
   end
 
   api.nvim_win_set_buf(0, buf)
-  fill_dirbuf(buf, dispname)
+  fill_dirbuf(buf, current_fname)
 end
 
 function M.enter()
@@ -161,7 +142,7 @@ function M.enter()
   end
 
   -- We rely on the autocmd to open directories
-  vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join(dir, fname)))
+  vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join_paths(dir, fname)))
 end
 
 -- Ensure that the directory has not changed since our last snapshot
@@ -224,7 +205,7 @@ function M.sync()
     api.nvim_err_writeln(err)
     return
   end
-  fill_dirbuf(CURRENT_BUFFER, dispname)
+  fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
 end
 
 function M.toggle_hide()
@@ -235,7 +216,7 @@ function M.toggle_hide()
     api.nvim_err_writeln(err)
     return
   end
-  fill_dirbuf(CURRENT_BUFFER, dispname)
+  fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
 end
 
 return M
