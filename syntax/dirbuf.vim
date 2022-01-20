@@ -24,7 +24,7 @@ syntax match DirbufBlock /^\([^\\\t]\|\\[\\t]\)\+#/me=e-1
 
 " Highlight each object according to its color in by ls --color=always
 highlight link DifbufFile Normal
-function s:SetColor(group_name, color_num)
+function! s:SetColor(group_name, color_num)
   if !exists('g:terminal_color_0')
     execute 'highlight '.a:group_name.' ctermfg='.a:color_num
   else

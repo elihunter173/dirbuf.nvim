@@ -7,12 +7,6 @@ local function fst(dispname)
   return FState.from_dispname(dispname, "")
 end
 
--- Monkeypatch fs.temppath for testing
-local TEMP = "$TEMP"
-fs.temppath = function()
-  return TEMP
-end
-
 local function apply_plan(fake_fs, plan)
   for _, action in ipairs(plan) do
     if action.type == "create" then
@@ -22,8 +16,8 @@ local function apply_plan(fake_fs, plan)
     elseif action.type == "delete" then
       fake_fs[action.fstate.path] = nil
     elseif action.type == "move" then
-      fake_fs[action.dst_path] = fake_fs[action.src_path]
-      fake_fs[action.src_path] = nil
+      fake_fs[action.dst_fstate.path] = fake_fs[action.src_fstate.path]
+      fake_fs[action.src_fstate.path] = nil
     end
   end
 end
@@ -181,10 +175,10 @@ describe("determine_plan", function()
     assert.same(4, opcount(plan, "move"))
   end)
 
-  -- FIXME: We skip the "efficient breakpoint" tests because Dirbuf sometimes
-  -- misses efficient breakpoints. Dirbuf's solutions are always correct but
-  -- not always optimal.
-  pending("swap with efficient breakpoint", function()
+  -- FIXME: We skip the "efficient breakpoint" efficiency tests because Dirbuf
+  -- sometimes misses efficient breakpoints. Dirbuf's solutions are always
+  -- correct but not always optimal.
+  it("swap with efficient breakpoint", function()
     local plan = planner.determine_plan {
       new_files = {},
       change_map = {
@@ -207,11 +201,11 @@ describe("determine_plan", function()
     local fake_fs = {["/a"] = "a", ["/b"] = "b"}
     apply_plan(fake_fs, plan)
     assert.same({["/a"] = "b", ["/b"] = "a", ["/c"] = "b"}, fake_fs)
-    assert.same(3, #plan)
-    assert.same(3, opcount(plan, "move"))
+    -- assert.same(3, #plan)
+    -- assert.same(3, opcount(plan, "move"))
   end)
 
-  pending("cycle with efficient breakpoint", function()
+  it("cycle with efficient breakpoint", function()
     local plan = planner.determine_plan {
       new_files = {},
       change_map = {
@@ -241,9 +235,9 @@ describe("determine_plan", function()
     apply_plan(fake_fs, plan)
     assert.same({["/a"] = "c", ["/b"] = "a", ["/c"] = "b", ["/d"] = "b"},
                 fake_fs)
-    assert.same(4, #plan)
-    assert.same(3, opcount(plan, "move"))
-    assert.same(1, opcount(plan, "copy"))
+    -- assert.same(4, #plan)
+    -- assert.same(3, opcount(plan, "move"))
+    -- assert.same(1, opcount(plan, "copy"))
   end)
 
 end)

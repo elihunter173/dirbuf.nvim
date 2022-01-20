@@ -69,6 +69,17 @@ COMMANDS                                                       *dirbuf-commands*
         :Dirbuf %
 <
 
+:DirbufSync [{flag}]                                        *dirbuf-:DirbufSync*
+    Saves and refreshes the current directory buffer, syncing its state with
+    the file system by creating, moving, copying, or deleting entries as
+    necessary.
+
+    Flags: ~
+        -dry-run    Rather than changing the filesystem, print out a list of
+                    all the actions `:DirbufSync` would perform. These are
+                    formatted as Unix-like commands (e.g. `mv 'foo' 'bar'`),
+                    no matter what platform you are on.
+
 ==============================================================================
 FUNCTIONS                                                     *dirbuf-functions*
 

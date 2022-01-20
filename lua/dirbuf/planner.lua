@@ -108,8 +108,8 @@ local function resolve_change(plan, change_map, change)
   -- everything
   local move_to = nil
   local stuck_fstate = nil
-  for _, dst in ipairs(change) do
-    local dependent_change = change_map[dst.fname]
+  for _, dst_fstate in ipairs(change) do
+    local dependent_change = change_map[dst_fstate.fname]
     if dependent_change ~= nil then
       if dependent_change.progress == "handling" then
         -- We have a cycle, we need to unstick it
@@ -117,7 +117,7 @@ local function resolve_change(plan, change_map, change)
           error("my assumption about `stuck_change` was wrong")
         end
         -- We handle this later
-        stuck_fstate = dst
+        stuck_fstate = dst_fstate
         goto continue
 
       else
@@ -132,9 +132,9 @@ local function resolve_change(plan, change_map, change)
     end
 
     if not change.stays and move_to == nil then
-      move_to = dst
+      move_to = dst_fstate
     else
-      table.insert(plan, copy(change.current_fstate, dst))
+      table.insert(plan, copy(change.current_fstate, dst_fstate))
     end
 
     ::continue::
@@ -142,7 +142,7 @@ local function resolve_change(plan, change_map, change)
 
   local gone = false
   if move_to ~= nil then
-    table.insert(plan, move(change.current_fstate.path, move_to.path))
+    table.insert(plan, move(change.current_fstate, move_to))
     gone = true
   end
 
@@ -158,9 +158,9 @@ local function resolve_change(plan, change_map, change)
     else
       -- We have NO safe place to copy from and we don't stay, so move to a
       -- temporary and then move again
-      local temppath = fs.temppath()
-      table.insert(plan, move(change.current_fstate.path, temppath))
-      post_resolution_action = move(temppath, stuck_fstate.path)
+      local temp_fstate = FState.temp(change.current_fstate.ftype)
+      table.insert(plan, move(change.current_fstate, temp_fstate))
+      post_resolution_action = move(temp_fstate, stuck_fstate)
       gone = true
     end
   end

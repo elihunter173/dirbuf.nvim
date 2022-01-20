@@ -44,17 +44,22 @@ function M.is_directory(path)
   return vim.fn.isdirectory(path) == 1
 end
 
-function M.temppath()
-  return vim.fn.tempname()
-end
-
 M.FState = {}
 local FState = M.FState
 
 function FState.new(fname, parent, ftype)
-  local o = {fname = fname, path = M.join_paths(parent, fname), ftype = ftype}
-  setmetatable(o, {__index = FState})
-  return o
+  return {fname = fname, path = M.join_paths(parent, fname), ftype = ftype}
+end
+
+function FState.temp(ftype)
+  local temppath = vim.fn.tempname()
+  return {
+    -- XXX: This technically violates fname's assumption that it is always a
+    -- simple name and not a path
+    fname = temppath,
+    path = temppath,
+    ftype = ftype,
+  }
 end
 
 -- FTypes are taken from
@@ -254,20 +259,20 @@ function M.actions.delete(args)
   return rm(fstate.path, fstate.ftype)
 end
 
-function M.plan.move(src_path, dst_path)
-  return {type = "move", src_path = src_path, dst_path = dst_path}
+function M.plan.move(src_fstate, dst_fstate)
+  return {type = "move", src_fstate = src_fstate, dst_fstate = dst_fstate}
 end
 
 function M.actions.move(args)
-  local src_path, dst_path = args.src_path, args.dst_path
+  local src_fstate, dst_fstate = args.src_fstate, args.dst_fstate
   -- FIXME: This is a TOCTOU
-  if uv.fs_access(dst_path, "W") then
-    return string.format("File at '%s' already exists", dst_path)
+  if uv.fs_access(dst_fstate.path, "W") then
+    return string.format("File at '%s' already exists", dst_fstate.path)
   end
-  local ok, err, _ = uv.fs_rename(src_path, dst_path)
+  local ok, err, _ = uv.fs_rename(src_fstate.path, dst_fstate.path)
   if not ok then
-    return
-        string.format("Move failed for %s -> %s: %s", src_path, dst_path, err)
+    return string.format("Move failed for %s -> %s: %s", src_fstate.path,
+                         dst_fstate.path, err)
   end
 end
 

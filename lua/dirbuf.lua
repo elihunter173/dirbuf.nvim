@@ -10,6 +10,13 @@ local M = {}
 
 local CURRENT_BUFFER = 0
 
+function M.setup(opts)
+  local err = config.update(opts)
+  if err ~= nil then
+    api.nvim_err_writeln("dirbuf.setup: " .. err)
+  end
+end
+
 -- fill_dirbuf fills buffer `buf` with the contents of its corresponding
 -- directory. `buf` must have the name of a valid directory and its contents
 -- must be a valid dirbuf.
@@ -45,13 +52,6 @@ local function fill_dirbuf(buf, on_fname)
   api.nvim_buf_set_option(buf, "modified", false)
 
   return nil
-end
-
-function M.setup(opts)
-  local err = config.update(opts)
-  if err ~= nil then
-    api.nvim_err_writeln("dirbuf.setup: " .. err)
-  end
 end
 
 local function set_dirbuf_opts(buf)
@@ -118,6 +118,11 @@ function M.open(path)
 end
 
 function M.enter()
+  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+    api.nvim_err_writeln("Operation only supports 'filetype=dirbuf'")
+    return
+  end
+
   local bufname = api.nvim_buf_get_name(CURRENT_BUFFER)
   local dir, err = uv.fs_realpath(bufname)
   if dir == nil then
@@ -168,7 +173,48 @@ local function check_dirbuf(buf)
   return nil
 end
 
-function M.sync()
+local function fmt_action(action)
+  local function fmt_fstate(fstate)
+    return vim.fn.shellescape(fs.FState.dispname(fstate))
+  end
+
+  if action.type == "create" then
+    if action.fstate.ftype == "directory" then
+      return "mkdir " .. fmt_fstate(action.fstate)
+    else
+      return "touch " .. fmt_fstate(action.fstate)
+    end
+
+  elseif action.type == "copy" then
+    return "cp " .. fmt_fstate(action.src_fstate) .. " " ..
+               fmt_fstate(action.dst_fstate)
+
+  elseif action.type == "delete" then
+    return "rm " .. fmt_fstate(action.fstate)
+
+  elseif action.type == "move" then
+    return "mv " .. fmt_fstate(action.src_fstate) .. " " ..
+               fmt_fstate(action.dst_fstate)
+
+  else
+    error("Unrecognized action: " .. vim.inspect(action))
+  end
+end
+
+function M.sync(opt)
+  if opt == nil then
+    opt = ""
+  end
+
+  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+    api.nvim_err_writeln(":DirbufSync only supports 'filetype=dirbuf'")
+    return
+  end
+
+  if opt ~= "" and opt ~= "-dry-run" then
+    api.nvim_err_writeln(":DirbufSync unrecognized option: " .. opt)
+  end
+
   if not api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
     return
   end
@@ -189,26 +235,40 @@ function M.sync()
     api.nvim_err_writeln(err)
     return
   end
-  local plan = planner.determine_plan(changes)
-  err = planner.execute_plan(plan)
-  if err ~= nil then
-    api.nvim_err_writeln("Error making changes: " .. err)
-    api.nvim_err_writeln(
-        "WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
-    return
-  end
 
-  -- We want to ensure that we are still hovering on the same line
-  local dispname
-  err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
-  if err ~= nil then
-    api.nvim_err_writeln(err)
-    return
+  local plan = planner.determine_plan(changes)
+
+  if opt == "-dry-run" then
+    for _, action in ipairs(plan) do
+      print(fmt_action(action))
+    end
+
+  else
+    err = planner.execute_plan(plan)
+    if err ~= nil then
+      api.nvim_err_writeln("Error making changes: " .. err)
+      api.nvim_err_writeln(
+          "WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
+      return
+    end
+
+    -- We want to ensure that we are still hovering on the same line
+    local dispname
+    err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
+    if err ~= nil then
+      api.nvim_err_writeln(err)
+      return
+    end
+    fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
   end
-  fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
 end
 
 function M.toggle_hide()
+  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+    api.nvim_err_writeln("Operation only supports 'filetype=dirbuf'")
+    return
+  end
+
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- We want to ensure that we are still hovering on the same line
   local err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())

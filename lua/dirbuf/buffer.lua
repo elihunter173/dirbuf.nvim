@@ -119,7 +119,7 @@ function M.write_dirbuf(dirbuf, track_fname)
   local max_len = 0
   for _, fstate_hash in ipairs(ir) do
     local fstate, hash = unpack(fstate_hash)
-    local dispname = fstate:dispname()
+    local dispname = FState.dispname(fstate)
     local dispname_esc = dispname:gsub("\\", "\\\\"):gsub("\t", "\\t")
     if #dispname_esc > max_len then
       max_len = #dispname_esc
@@ -148,7 +148,7 @@ function M.create_dirbuf(dir, show_hidden)
     end
 
     local fstate = FState.new(fname, dir, ftype)
-    local hash = fstate:hash()
+    local hash = FState.hash(fstate)
     if dirbuf.fstates[hash] ~= nil then
       -- This should never happen
       error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash,
