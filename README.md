@@ -25,7 +25,7 @@ higher.
 * [vim-plug]: `Plug "elihunter173/dirbuf.nvim"`
 * [packer.nvim]: `use "elihunter173/dirbuf.nvim"`
 
-### Notice
+### Notes
 
 If you use [`nvim-tree.lua`](https://github.com/kyazdani42/nvim-tree.lua), you
 must disable the `:help nvim-tree.update_to_buf_dir` option. Otherwise, Dirbuf
@@ -35,6 +35,23 @@ will fail to open directory buffers.
 require("nvim-tree").setup {
     update_to_buf_dir = { enable = false }
 }
+```
+
+If you notice `nvim /some/directory` opening Netrw instead of Dirbuf, you can
+disable Netrw by adding the following to your `init.vim` or `init.lua`. This
+issue only appears with certain package managers and affects other file manager
+plugins as well. I am searching for a more elegant solution.
+
+```vim
+" init.vim
+let g:loaded_netrwPlugin = 1
+let g:loaded_netrw = 1
+```
+
+```lua
+-- init.lua
+vim.g.loaded_netrwPlugin = 1
+vim.g.loaded_netrw = 1
 ```
 
 ## Usage
