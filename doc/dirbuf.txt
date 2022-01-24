@@ -38,6 +38,10 @@ choose from two slightly different things instead of one augmented system.
 ==============================================================================
 MAPPINGS                                                       *dirbuf-mappings*
 
+All mappings are listed with their <Plug> mapping and their default mapping.
+If a mapping to the <Plug> version already exists, then the default mapping is
+not made.
+
 Global ~
     <Plug>(dirbuf_up)
     -               Opens the current file's directory or the [count]th parent
