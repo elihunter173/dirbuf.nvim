@@ -57,7 +57,7 @@ end
 local function set_dirbuf_opts(buf)
   api.nvim_buf_set_option(buf, "filetype", "dirbuf")
   api.nvim_buf_set_option(buf, "buftype", "acwrite")
-  api.nvim_buf_set_option(buf, "bufhidden", "hide")
+  api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 
   local ok, _ = pcall(api.nvim_buf_get_var, buf, "dirbuf_show_hidden")
   if not ok then
@@ -102,16 +102,13 @@ function M.open(path)
     current_fname = vim.fn.fnamemodify(current_path, ":t")
   end
 
-  local buf = vim.fn.bufnr("^" .. dir .. "$")
-  if buf == -1 then
-    buf = api.nvim_create_buf(true, false)
-    if buf == 0 then
-      api.nvim_err_writeln("Failed to create buffer")
-      return
-    end
-    api.nvim_buf_set_name(buf, dir)
-    set_dirbuf_opts(buf)
+  local buf = api.nvim_create_buf(true, false)
+  if buf == 0 then
+    api.nvim_err_writeln("Failed to create buffer")
+    return
   end
+  api.nvim_buf_set_name(buf, dir)
+  set_dirbuf_opts(buf)
 
   api.nvim_win_set_buf(0, buf)
   fill_dirbuf(buf, current_fname)
