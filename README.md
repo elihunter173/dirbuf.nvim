@@ -75,9 +75,7 @@ override the default config, the following options are available.
 require("dirbuf").setup {
     hash_padding = 2,
     show_hidden = true,
-    sort_order = function(l, r)
-        return l.fname:lower() < r.fname:lower()
-    end,
+    sort_order = "default",
 }
 ```
 

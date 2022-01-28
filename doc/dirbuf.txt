@@ -87,12 +87,10 @@ dirbuf.setup({opts})                                            *dirbuf-setup()*
     Overwrites the default options with the options in the `opts` table.
 
     Example with all the default options: >
-        require('dirbuf').setup {
+        require("dirbuf").setup {
             hash_padding = 2,
             show_hidden = true,
-            sort_order = function(l, r)
-                return l.fname:lower() < r.fname:lower()
-            end,
+            sort_order = "default",
         }
 <
 
@@ -108,11 +106,19 @@ OPTIONS                                                         *dirbuf-options*
     when opening new directory buffers. This can be changed locally per-buffer
     with the `gh` mapping.
 
-|sort_order| (default: case-insensitive sorting by fnames)
+|sort_order| (default: `"default"`)
     What order Dirbuf should sort the directory buffer in when it is created
     and refreshed.
 
-    This must be a comparison function which takes two tables {left} and
+    This must be either a string or a comparison function.
+
+    If it is a string, then it must be one of the following values
+    Values: ~
+       "default"            sort case-insensitively by {fname}s
+       "directories_first"  groups files of like {ftype} and then sort within
+                            groups case-insensitively by {fname}
+
+    If it is a comparison function, it must take two tables {left} and
     {right}, each describing a filesystem entry, which returns `true` when
     {left} should appear before (i.e. above) {right} in the directory buffer.
 
