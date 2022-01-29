@@ -28,7 +28,7 @@ augroup dirbuf
   autocmd VimEnter * if exists('#FileExplorer') | execute 'autocmd! FileExplorer *' | endif
   " Makes editing a directory open a dirbuf. We always re-init the dirbuf
   autocmd BufEnter * if isdirectory(expand('<afile>')) && !&modified
-        \ | execute 'lua require"dirbuf".edit_dirbuf(vim.fn.expand("<abuf>"), vim.fn.expand("<afile>"))'
+        \ | execute 'lua require"dirbuf".edit_dirbuf(vim.fn.expand("<abuf>"))'
         \ | endif
 augroup END
 

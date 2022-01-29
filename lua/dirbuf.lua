@@ -75,12 +75,17 @@ local function directify(path)
 end
 
 -- This buffer must be the currently focused buffer
-function M.edit_dirbuf(buf, path)
+function M.edit_dirbuf(buf)
+  local altbuf = vim.fn.bufnr("#")
+
   -- Vimscript hands us a string
   buf = tonumber(buf)
-  local dir = directify(path)
-  api.nvim_buf_set_name(buf, dir)
+  local path = vim.fn.simplify(api.nvim_buf_get_name(buf))
+  api.nvim_buf_set_name(buf, path)
 
+  if altbuf ~= -1 then
+    vim.fn.setreg("#", altbuf)
+  end
   set_dirbuf_opts(buf)
   fill_dirbuf(buf)
 end
@@ -102,15 +107,24 @@ function M.open(path)
     current_fname = vim.fn.fnamemodify(current_path, ":t")
   end
 
+  local altbuf = api.nvim_get_current_buf()
+  -- This let's us chain dirbufs
+  if api.nvim_buf_get_option(altbuf, "filetype") == "dirbuf" then
+    altbuf = vim.fn.bufnr("#")
+  end
+
   local buf = api.nvim_create_buf(true, false)
   if buf == 0 then
     api.nvim_err_writeln("Failed to create buffer")
     return
   end
   api.nvim_buf_set_name(buf, dir)
-  set_dirbuf_opts(buf)
+  api.nvim_set_current_buf(buf)
 
-  api.nvim_win_set_buf(0, buf)
+  if altbuf ~= -1 then
+    vim.fn.setreg("#", altbuf)
+  end
+  set_dirbuf_opts(buf)
   fill_dirbuf(buf, current_fname)
 end
 
@@ -144,7 +158,8 @@ function M.enter()
   end
 
   -- We rely on the autocmd to open directories
-  vim.cmd("silent edit " .. vim.fn.fnameescape(fs.join_paths(dir, fname)))
+  vim.cmd("silent keepalt edit " ..
+              vim.fn.fnameescape(fs.join_paths(dir, fname)))
 end
 
 -- Ensure that the directory has not changed since our last snapshot
