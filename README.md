@@ -1,19 +1,20 @@
 # dirbuf.nvim
 
-A directory buffer for Neovim, inspired by [dirvish.vim] and [vidir].
+A directory buffer for Neovim that lets you edit your filesystem like you edit
+text. Inspired by [dirvish.vim] and [vidir].
 
-## What is Dirbuf?
+## Features
 
-Dirbuf was created with the idea that you should be able to manipulate your
-filesystem just like you manipulate text.
-
-So to create a new file, add a new line with the file's name. You can also add
-a `/` to make it a directory instead. To delete a file or directory, delete its
-line. To copy, copy its line and give it a new name. To rename, change its
-name.
-
-You can make as many changes as you like. They won't take effect until you
-save.
+* *Intuitive:* Create, copy, delete, and rename files, directories, and more by
+  editing their lines in the directory buffer.
+* *Minimal:* Works out of the box with no configuration. Default mappings
+  easily changed.
+* *Unobtrusive:* Preserves alternate buffers, letting you switch between
+  files with `Ctrl-^` (`Ctrl-6`).
+* *Safe:* Does not modify the filesystem until you save the buffer. Let's you
+  dry-run saving.
+* *Polite:* Plays nicely with tree-based file viewers like [nvim-tree.lua],
+  [fern.vim], and [carbon.nvim].
 
 https://user-images.githubusercontent.com/42009212/149638284-c944bbcc-bb25-4bd5-b8a3-994d03c79d95.mp4
 
@@ -63,6 +64,7 @@ Editing a directory will also open up a directory buffer, overriding Netrw.
 Inside a directory buffer, there are the following keybindings:
 * `<CR>`: Open the file or directory at the cursor.
 * `gh`: Toggle showing hidden files (i.e. dot files).
+* `-`: Open parent directory.
 
 See `:help dirbuf.txt` for more info.
 
@@ -93,7 +95,10 @@ $ make test
 This will download [plenary.nvim]'s test harness and run the `*_spec.lua` tests
 in `tests/`.
 
+[carbon.nvim]: https://github.com/SidOfc/carbon.nvim
 [dirvish.vim]: https://github.com/justinmk/vim-dirvish
+[fern.vim]: https://github.com/lambdalisue/fern.vim
+[nvim-tree.lua]: https://github.com/kyazdani42/nvim-tree.lua
 [packer.nvim]: https://github.com/wbthomason/packer.nvim
 [plenary.nvim]: https://github.com/nvim-lua/plenary.nvim
 [vidir]: https://github.com/trapd00r/vidir
