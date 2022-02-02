@@ -9,6 +9,7 @@ local planner = require("dirbuf.planner")
 local M = {}
 
 local CURRENT_BUFFER = 0
+local CURRENT_WINDOW = 0
 
 function M.setup(opts)
   local err = config.update(opts)
@@ -45,7 +46,7 @@ local function fill_dirbuf(buf, on_fname)
   api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
 
   if fname_line ~= nil then
-    api.nvim_win_set_cursor(0, {fname_line, 0})
+    api.nvim_win_set_cursor(CURRENT_WINDOW, {fname_line, 0})
   end
 
   -- Us filling the buffer counts as modifying it
@@ -65,6 +66,46 @@ local function set_dirbuf_opts(buf)
   end
 end
 
+local function normalize_dir(path)
+  path = vim.fn.simplify(path)
+  -- On Windows, simplify keeps the path_separator on directories
+  if path:sub(-1, -1) == fs.path_separator then
+    return vim.fn.fnamemodify(path, ":h")
+  end
+  return path
+end
+
+local function path_in_dir(dir, path)
+  return dir == vim.fn.fnamemodify(path, ":h")
+end
+
+function M.on_bufenter()
+  local path = normalize_dir(api.nvim_buf_get_name(CURRENT_BUFFER))
+
+  local should_update_dirbuf = not api.nvim_buf_get_option(CURRENT_BUFFER,
+                                                           "modified") and
+                                   fs.is_directory(path)
+  if should_update_dirbuf then
+    local altbuf = vim.fn.bufnr("#")
+
+    api.nvim_buf_set_name(CURRENT_BUFFER, path)
+
+    local cursor_fname = nil
+    local last_path = vim.w.dirbuf_last_path
+    if last_path ~= nil and path_in_dir(path, last_path) then
+      cursor_fname = vim.fn.fnamemodify(last_path, ":t")
+    end
+
+    set_dirbuf_opts(CURRENT_BUFFER)
+    fill_dirbuf(CURRENT_BUFFER, cursor_fname)
+    if altbuf ~= -1 then
+      vim.fn.setreg("#", altbuf)
+    end
+  end
+
+  api.nvim_win_set_var(CURRENT_WINDOW, "dirbuf_last_path", path)
+end
+
 local function directify(path)
   if fs.is_directory(path) then
     return vim.fn.fnamemodify(path, ":p")
@@ -74,58 +115,22 @@ local function directify(path)
   end
 end
 
--- This buffer must be the currently focused buffer
-function M.edit_dirbuf(buf)
-  local altbuf = vim.fn.bufnr("#")
-
-  -- Vimscript hands us a string
-  buf = tonumber(buf)
-  local path = vim.fn.simplify(api.nvim_buf_get_name(buf))
-  api.nvim_buf_set_name(buf, path)
-
-  if altbuf ~= -1 then
-    vim.fn.setreg("#", altbuf)
-  end
-  set_dirbuf_opts(buf)
-  fill_dirbuf(buf)
-end
-
 function M.open(path)
   if path == "" then
     path = "."
   end
-  local dir = directify(path)
+  path = normalize_dir(path)
+  path = directify(path)
 
-  -- Find fname of current path so we can position our cursor on it
-  local current_path = vim.fn.expand("%")
-  local current_fname
-  if fs.is_directory(current_path) then
-    -- Doing :t on a directory results in an empty string because of the
-    -- trailing /, so we strip that off first with :h
-    current_fname = vim.fn.fnamemodify(current_path, ":h:t")
-  else
-    current_fname = vim.fn.fnamemodify(current_path, ":t")
+  local keepalt = ""
+  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") == "dirbuf" then
+    -- If we're leaving a dirbuf, keep our alternate buffer
+    keepalt = "keepalt"
   end
 
-  local altbuf = api.nvim_get_current_buf()
-  -- This let's us chain dirbufs
-  if api.nvim_buf_get_option(altbuf, "filetype") == "dirbuf" then
-    altbuf = vim.fn.bufnr("#")
-  end
-
-  local buf = api.nvim_create_buf(true, false)
-  if buf == 0 then
-    api.nvim_err_writeln("Failed to create buffer")
-    return
-  end
-  api.nvim_buf_set_name(buf, dir)
-  api.nvim_set_current_buf(buf)
-
-  if altbuf ~= -1 then
-    vim.fn.setreg("#", altbuf)
-  end
-  set_dirbuf_opts(buf)
-  fill_dirbuf(buf, current_fname)
+  vim.cmd("silent " .. keepalt .. " edit " .. vim.fn.fnameescape(path))
+  -- XXX: Neovim does not trigger our autocmd here so we manually execute it
+  M.on_bufenter()
 end
 
 function M.enter()
@@ -134,16 +139,10 @@ function M.enter()
     return
   end
 
-  local bufname = api.nvim_buf_get_name(CURRENT_BUFFER)
-  local dir, err = uv.fs_realpath(bufname)
-  if dir == nil then
-    api.nvim_err_writeln(err)
-    return
-  end
+  local dir = normalize_dir(api.nvim_buf_get_name(CURRENT_BUFFER))
 
   local line = api.nvim_get_current_line()
-  local hash
-  err, _, hash = buffer.parse_line(line)
+  local err, _, hash = buffer.parse_line(line)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
