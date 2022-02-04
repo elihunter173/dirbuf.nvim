@@ -168,9 +168,16 @@ function M.enter()
     return
   end
 
-  -- We rely on the autocmd to open directories
-  vim.cmd("silent keepalt edit " ..
-              vim.fn.fnameescape(fs.join_paths(dir, fname)))
+  -- We rely on autocmds to open directories
+  local path = fs.join_paths(dir, fname)
+  vim.cmd("silent keepalt edit " .. vim.fn.fnameescape(path))
+  -- TODO: Currently Neovim swallows errors in BufEnter autocmds, so this hack
+  -- gets around that: https://github.com/neovim/neovim/issues/13711
+  -- This code is also arguably correct outside of that issue since it means
+  -- dirbuf.enter() on a directory will always open another dirbuf
+  if fs.is_directory(path) then
+    M.init_dirbuf()
+  end
 end
 
 -- Ensure that the directory has not changed since our last snapshot
