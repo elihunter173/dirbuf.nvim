@@ -97,9 +97,13 @@ function M.on_bufenter()
     end
 
     set_dirbuf_opts(CURRENT_BUFFER)
-    fill_dirbuf(CURRENT_BUFFER, cursor_fname)
     if altbuf ~= -1 then
       vim.fn.setreg("#", altbuf)
+    end
+    local err = fill_dirbuf(CURRENT_BUFFER, cursor_fname)
+    if err ~= nil then
+      api.nvim_err_writeln(err)
+      return
     end
   end
 
@@ -270,7 +274,11 @@ function M.sync(opt)
       api.nvim_err_writeln(err)
       return
     end
-    fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
+    err = fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
+    if err ~= nil then
+      api.nvim_err_writeln(err)
+      return
+    end
   end
 end
 
@@ -287,7 +295,11 @@ function M.toggle_hide()
     api.nvim_err_writeln(err)
     return
   end
-  fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
+  err = fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
+  end
 end
 
 return M
