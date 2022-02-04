@@ -71,7 +71,8 @@ See `:help dirbuf.txt` for more info.
 ## Configuration
 
 Configuration is not necessary for Dirbuf to work. But for those that want to
-override the default config, the following options are available.
+override the default config, the following options are available with their
+default values listed.
 
 ```lua
 require("dirbuf").setup {

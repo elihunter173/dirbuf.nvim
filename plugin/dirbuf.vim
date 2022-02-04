@@ -27,7 +27,9 @@ augroup dirbuf
   " Remove netrw directory handlers.
   autocmd VimEnter * if exists('#FileExplorer') | execute 'autocmd! FileExplorer *' | endif
   " Makes editing a directory open a dirbuf. We always re-init the dirbuf
-  autocmd BufEnter * execute 'lua require"dirbuf".on_bufenter()'
+  autocmd BufEnter * if isdirectory(expand('%')) && !&modified
+        \ | execute 'lua require"dirbuf".init_dirbuf()'
+        \ | endif
 augroup END
 
 let g:loaded_dirbuf = 1

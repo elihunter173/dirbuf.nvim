@@ -36,8 +36,14 @@ function M.is_hidden(fname)
 end
 
 function M.join_paths(...)
-  local paths = {...}
-  return table.concat(paths, M.path_separator)
+  local string_builder = {}
+  for _, path in ipairs({...}) do
+    if path:sub(-1, -1) == M.path_separator then
+      path = path:sub(0, -2)
+    end
+    table.insert(string_builder, path)
+  end
+  return table.concat(string_builder, M.path_separator)
 end
 
 function M.is_directory(path)
