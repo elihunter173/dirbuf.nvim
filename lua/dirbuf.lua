@@ -19,8 +19,7 @@ function M.setup(opts)
 end
 
 -- fill_dirbuf fills buffer `buf` with the contents of its corresponding
--- directory. `buf` must have the name of a valid directory and its contents
--- must be a valid dirbuf.
+-- directory. `buf` must have the name of a valid directory.
 --
 -- If `on_fname` is set, then the cursor will be put on the line corresponding
 -- to `on_fname`.
@@ -49,7 +48,6 @@ local function fill_dirbuf(buf, on_fname)
     api.nvim_win_set_cursor(CURRENT_WINDOW, {fname_line, 0})
   end
 
-  -- Us filling the buffer counts as modifying it
   api.nvim_buf_set_option(buf, "modified", false)
 
   return nil
@@ -84,8 +82,7 @@ function M.init_dirbuf(from_path)
   local cursor_fname = nil
   -- See if we're coming from a path below this dirbuf
   if from_path ~= nil and vim.startswith(from_path, path) then
-    -- If the path ends with a path path_separator, we don't need to clip
-    -- past it
+    -- If path ends with path_separator, we don't need to clip past it
     local start
     if path:sub(-1, -1) == fs.path_separator then
       start = #path + 1
@@ -111,11 +108,12 @@ function M.init_dirbuf(from_path)
   end
 end
 
+-- If `path` is a file, this returns the absolute path to its parent. Otherwise
+-- it returns the absolute path of `path`.
 local function directify(path)
   if fs.is_directory(path) then
     return vim.fn.fnamemodify(path, ":p")
   else
-    -- Return the path with the head (i.e. file) stripped off
     return vim.fn.fnamemodify(path, ":h:p")
   end
 end
@@ -128,8 +126,7 @@ function M.open(path)
 
   local from_path = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
   if from_path == path then
-    -- If we're not leaving, we want to keep the cursor on the line they left
-    -- it on
+    -- If we're not leaving, we want to keep the cursor on the same line
     local err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
     if err ~= nil then
       api.nvim_err_writeln("Error placing cursor: " .. err)
@@ -251,8 +248,6 @@ function M.sync(opt)
     return
   end
 
-  -- Parse the buffer to determine what we need to do get directory and dirbuf
-  -- in sync
   local dirbuf = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf")
   local lines = api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)
   local changes
@@ -278,7 +273,7 @@ function M.sync(opt)
       return
     end
 
-    -- We want to ensure that we are still hovering on the same line
+    -- Leave cursor on the same file
     local dispname
     err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
     if err ~= nil then
@@ -300,7 +295,7 @@ function M.toggle_hide()
   end
 
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
-  -- We want to ensure that we are still hovering on the same line
+  -- Leave cursor on the same file
   local err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
