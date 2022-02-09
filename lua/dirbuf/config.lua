@@ -13,11 +13,7 @@ local function sort_directories_first(left, right)
 end
 
 -- Default config settings
-local conf = {
-  hash_padding = 2,
-  show_hidden = true,
-  sort_order = sort_default,
-}
+local conf = {hash_padding = 2, show_hidden = true, sort_order = sort_default}
 
 function M.update(opts)
   if opts.hash_padding ~= nil then

@@ -127,12 +127,12 @@ function M.open(path)
   local from_path = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
   if from_path == path then
     -- If we're not leaving, we want to keep the cursor on the same line
-    local err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
+    local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
     if err ~= nil then
       api.nvim_err_writeln("Error placing cursor: " .. err)
       return
     end
-    from_path = fs.join_paths(path, fs.dispname_to_fname(dispname))
+    from_path = fs.join_paths(path, fname)
   end
 
   local keepalt = ""
@@ -154,7 +154,7 @@ function M.enter()
   local dir = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
 
   local line = api.nvim_get_current_line()
-  local err, _, hash = buffer.parse_line(line)
+  local err, hash, _, _ = buffer.parse_line(line)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -168,10 +168,9 @@ function M.enter()
     return
   end
 
-  -- We rely on autocmds to open directories
   local path = fs.join_paths(dir, fname)
   vim.cmd("silent keepalt edit " .. vim.fn.fnameescape(path))
-  -- TODO: Currently Neovim swallows errors in BufEnter autocmds, so this hack
+  -- NOTE: Currently Neovim swallows errors in BufEnter autocmds, so this hack
   -- gets around that: https://github.com/neovim/neovim/issues/13711
   -- This code is also arguably correct outside of that issue since it means
   -- dirbuf.enter() on a directory will always open another dirbuf
@@ -205,7 +204,7 @@ end
 
 local function fmt_action(action)
   local function fmt_fstate(fstate)
-    return vim.fn.shellescape(fs.FState.dispname(fstate))
+    return vim.fn.shellescape(buffer.display_fstate(fstate))
   end
 
   if action.type == "create" then
@@ -281,13 +280,13 @@ function M.sync(opt)
     end
 
     -- Leave cursor on the same file
-    local dispname
-    err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
+    local fname
+    err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
     if err ~= nil then
       api.nvim_err_writeln(err)
       return
     end
-    err = fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
+    err = fill_dirbuf(CURRENT_BUFFER, fname)
     if err ~= nil then
       api.nvim_err_writeln(err)
       return
@@ -303,12 +302,12 @@ function M.toggle_hide()
 
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- Leave cursor on the same file
-  local err, dispname, _ = buffer.parse_line(api.nvim_get_current_line())
+  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
   end
-  err = fill_dirbuf(CURRENT_BUFFER, fs.dispname_to_fname(dispname))
+  err = fill_dirbuf(CURRENT_BUFFER, fname)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return

@@ -44,19 +44,19 @@ function M.build_changes(dirbuf, lines)
   local used_fnames = {}
   -- Go through every line and build changes
   for lnum, line in ipairs(lines) do
-    local err, dispname, hash = buffer.parse_line(line)
+    local err, hash, fname, ftype = buffer.parse_line(line)
     if err ~= nil then
       return string.format("Line %d: %s", lnum, err)
     end
-    if dispname == nil then
+    if fname == nil then
       goto continue
     end
 
-    local dst_fstate = FState.from_dispname(dispname, dirbuf.dir)
-
-    if used_fnames[dst_fstate.fname] ~= nil then
-      return string.format("Line %d: Duplicate name '%s'", lnum, dispname)
+    if used_fnames[fname] ~= nil then
+      return string.format("Line %d: Duplicate name '%s'", lnum, fname)
     end
+
+    local dst_fstate = FState.new(fname, dirbuf.dir, ftype)
 
     if hash == nil then
       table.insert(new_files, dst_fstate)

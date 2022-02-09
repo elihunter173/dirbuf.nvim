@@ -13,65 +13,121 @@ local record Dirbuf
 end
 --]]
 
--- The language of valid dirbuf lines is regular, so normally I would use a
--- regular expression. However, Lua doesn't have a proper regex engine, just
--- simpler patterns. These patterns can't parse dirbuf lines (b/c of escaping),
--- so I manually build the parser. It also gives nicer error messages.
---
--- Returns err, dispname, hash
-function M.parse_line(line)
-  local string_builder = {}
-  -- We store this in a local so we can skip characters
-  local chars = line:gmatch(".")
+local function is_suffix(c)
+  return
+      c == "/" or c == "\\" or c == "@" or c == "|" or c == "=" or c == "%" or c ==
+          "#"
+end
 
-  -- Parse fname
+-- These suffixes are taken from `ls --classify` and zsh's tab completion
+local function suffix_to_ftype(suffix)
+  if suffix == nil then
+    return "file"
+  elseif suffix == "/" or suffix == "\\" then
+    return "directory"
+  elseif suffix == "@" then
+    return "link"
+  elseif suffix == "|" then
+    return "fifo"
+  elseif suffix == "=" then
+    return "socket"
+  elseif suffix == "%" then
+    return "char"
+  elseif suffix == "#" then
+    return "block"
+  else
+    error(string.format(
+              "Unrecognized suffix %s. This should be impossible and is a bug in dirbuf.",
+              vim.inspect(suffix)))
+  end
+end
+
+local function ftype_to_suffix(ftype)
+  if ftype == "file" then
+    return ""
+  elseif ftype == "directory" then
+    return fs.path_separator
+  elseif ftype == "link" then
+    return "@"
+  elseif ftype == "fifo" then
+    return "|"
+  elseif ftype == "socket" then
+    return "="
+  elseif ftype == "char" then
+    return "%"
+  elseif ftype == "block" then
+    return "#"
+  else
+    error(string.format(
+              "Unrecognized ftype %s. This should be impossible and is a bug in dirbuf",
+              vim.inspect(ftype)))
+  end
+end
+
+local function parse_fname(chars)
+  local string_builder = {}
+
+  local last_suffix = nil
   while true do
     local c = chars()
-    if c == nil then
-      -- Ended line in fname
-      if #string_builder > 0 then
-        local fname = table.concat(string_builder)
-        return nil, fname, nil
-      else
-        return nil, nil, nil
+    if c == nil or c == "\t" then
+      break
+    end
+
+    if last_suffix ~= nil then
+      -- This suffix wasn't it :)
+      table.insert(string_builder, last_suffix)
+    end
+
+    if c == "\\" then
+      local next_c = chars()
+      if next_c == nil or next_c == "\t" then
+        -- `c` was a terminal backslash
+        last_suffix = "\\"
+        break
       end
 
-    elseif c == "\t" then
-      break
-    elseif c == "\\" then
-      local next_c = chars()
-      if next_c == "/" or next_c == "\\" then
+      -- Convert escape sequence
+      if next_c == "\\" then
+        last_suffix = nil
         table.insert(string_builder, next_c)
       elseif next_c == "t" then
+        last_suffix = nil
         table.insert(string_builder, "\t")
-      elseif next_c == nil then
-        return "Cannot escape end of line"
       else
         return string.format("Invalid escape sequence '\\%s'", next_c)
       end
+
+    elseif is_suffix(c) then
+      last_suffix = c
+
     else
+      last_suffix = nil
       table.insert(string_builder, c)
     end
   end
-  local dispname = table.concat(string_builder)
 
-  -- Skip to hash
-  while true do
-    local c = chars()
-    if c == nil then
-      -- Ended line before hash
-      return nil, dispname, nil
-    elseif c == "#" then
-      break
-    elseif not c:match("%s") then
-      return string.format("Unexpected character '%s' after fname", c)
-    end
+  if #string_builder > 0 then
+    local fname = table.concat(string_builder)
+    local ftype = suffix_to_ftype(last_suffix)
+    return nil, fname, ftype
+  else
+    return nil, nil, nil
+  end
+end
+
+local function parse_hash(chars)
+  local c = chars()
+  if c == nil then
+    -- Ended line before hash
+    return nil, nil
+  elseif c ~= "#" then
+    return string.format("Unexpected character '%s' after fname", c)
   end
 
-  -- Parse hash
-  string_builder = {}
+  local string_builder = {}
   for _ = 1, fs.HASH_LEN do
-    local c = chars()
+    c = chars()
     if c == nil then
       return "Unexpected end of line in hash"
     elseif not c:match("%x") then
@@ -80,7 +136,28 @@ function M.parse_line(line)
       table.insert(string_builder, c)
     end
   end
-  local hash = table.concat(string_builder)
+  return nil, table.concat(string_builder)
+end
+
+-- The language of valid dirbuf lines is regular, so normally I would use a
+-- regular expression. However, Lua doesn't have a proper regex engine, just
+-- simpler patterns. These patterns can't parse dirbuf lines (b/c of escaping),
+-- so I manually build the parser. It also gives nicer error messages.
+--
+-- Returns err, hash, fname, ftype
+function M.parse_line(line)
+  local chars = line:gmatch(".")
+
+  local err, fname, ftype = parse_fname(chars)
+  if err ~= nil then
+    return err
+  end
+
+  local hash
+  err, hash = parse_hash(chars)
+  if err ~= nil then
+    return err
+  end
 
   -- Consume trailing whitespace
   while true do
@@ -92,7 +169,12 @@ function M.parse_line(line)
     end
   end
 
-  return nil, dispname, hash
+  return nil, hash, fname, ftype
+end
+
+function M.display_fstate(fstate)
+  local escaped = fstate.fname:gsub("\\", "\\\\"):gsub("\t", "\\t")
+  return escaped .. ftype_to_suffix(fstate.ftype)
 end
 
 function M.write_dirbuf(dirbuf, track_fname)
@@ -119,12 +201,11 @@ function M.write_dirbuf(dirbuf, track_fname)
   local max_len = 0
   for _, fstate_hash in ipairs(ir) do
     local fstate, hash = unpack(fstate_hash)
-    local dispname = FState.dispname(fstate)
-    local dispname_esc = dispname:gsub("\\", "\\\\"):gsub("\t", "\\t")
-    if #dispname_esc > max_len then
-      max_len = #dispname_esc
+    local display = M.display_fstate(fstate)
+    if #display > max_len then
+      max_len = #display
     end
-    table.insert(buf_lines, dispname_esc .. "\t#" .. hash)
+    table.insert(buf_lines, display .. "\t#" .. hash)
   end
 
   return buf_lines, max_len, fname_line

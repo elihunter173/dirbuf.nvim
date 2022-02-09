@@ -50,6 +50,25 @@ function M.is_directory(path)
   return vim.fn.isdirectory(path) == 1
 end
 
+-- FTypes are taken from
+-- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
+--[[
+local enum FType
+  "file"
+  "directory"
+  "link"
+  "fifo"
+  "socket"
+  "char"
+  "block"
+end
+local record FState
+  fname: string
+  ftype: FType
+  path: string
+end
+--]]
+
 M.FState = {}
 local FState = M.FState
 
@@ -66,81 +85,6 @@ function FState.temp(ftype)
     path = temppath,
     ftype = ftype,
   }
-end
-
--- FTypes are taken from
--- https://github.com/tbastos/luv/blob/2fed9454ebb870548cef1081a1f8a3dd879c1e70/src/fs.c#L420-L430
---[[
-local enum FType
-  "file"
-  "directory"
-  "link"
-  "fifo"
-  "socket"
-  "char"
-  "block"
-end
---]]
-function M.dispname_to_fname(dispname)
-  if dispname == nil then
-    return nil
-  end
-
-  local last_char = dispname:sub(-1, -1)
-  if last_char == "/" or last_char == "@" or last_char == "|" or last_char ==
-      "=" or last_char == "%" or last_char == "#" then
-    return dispname:sub(0, -2)
-  else
-    return dispname
-  end
-end
-
-function FState.from_dispname(dispname, parent)
-  -- This is the last byte as a string, which is okay because all our
-  -- classifiers are single characters
-  local last_char = dispname:sub(-1, -1)
-  if last_char == "/" then
-    return FState.new(dispname:sub(0, -2), parent, "directory")
-  elseif last_char == "@" then
-    return FState.new(dispname:sub(0, -2), parent, "link")
-  elseif last_char == "|" then
-    return FState.new(dispname:sub(0, -2), parent, "fifo")
-  elseif last_char == "=" then
-    return FState.new(dispname:sub(0, -2), parent, "socket")
-  elseif last_char == "%" then
-    return FState.new(dispname:sub(0, -2), parent, "char")
-  elseif last_char == "#" then
-    return FState.new(dispname:sub(0, -2), parent, "block")
-  else
-    return FState.new(dispname, parent, "file")
-  end
-end
-
-function M.fname_to_dispname(fname, ftype)
-  if ftype == "file" then
-    return fname
-  elseif ftype == "directory" then
-    return fname .. "/"
-  elseif ftype == "link" then
-    return fname .. "@"
-  elseif ftype == "fifo" then
-    return fname .. "|"
-  elseif ftype == "socket" then
-    return fname .. "="
-  elseif ftype == "char" then
-    return fname .. "%"
-  elseif ftype == "block" then
-    return fname .. "#"
-  else
-    error(string.format("Unrecognized ftype '%s'. This should be impossible",
-                        vim.inspect(ftype)))
-  end
-end
-
--- Add the appropriate classifier for the given ftype. These classifiers are
--- taken from `ls --classify` and zsh's tab completion
-function FState:dispname()
-  return M.fname_to_dispname(self.fname, self.ftype)
 end
 
 function FState:hash()

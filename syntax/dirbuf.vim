@@ -2,28 +2,32 @@
 " (a) and (b) define all valid character units, so this regex matches one or
 " more valid character units at the beginning of a line.
 "
-" /^\([^\\\t]\|\\[\\t]\)\+/
-"     ^^(a)^^  ^^(b)^^
+" /^\([^\\\t]\|\\[\\t]\)\+\t/
+"     ^^(a)^^  ^^(b)^^    (c)
 " (a): all valid single-characters (i.e. not tabs or escape sequences).
 " (b): all valid escape sequences.
+" (c): the end character (either \t or $)
 "
 " Object suffixes (e.g. / for directories) are this regular expression with
 " their appropriate suffix tacked on. The longest regex is the one
-" highlighted, so the suffix always controls the color. We include me=e-1 set
-" the 'match end' to be one before the normal 'end' so the suffix doesn't get
-" highlighted.
+" highlighted, so the suffix always controls the color. We include me=e-1 (or
+" me=e-2 depending on suffix) to set the 'match end' to be one before the
+" normal 'end' so the suffix doesn't get highlighted.
 "
-" The suffixes are taken from `ls --clasisify` and zsh's tab completion.
-syntax match DirbufFile /^\([^\\\t]\|\\[\\t]\)\+/
-syntax match DirbufDirectory /^\([^\\\t]\|\\[\\t]\)\+\//me=e-1
-syntax match DirbufLink /^\([^\\\t]\|\\[\\t]\)\+@/me=e-1
-syntax match DirbufFifo /^\([^\\\t]\|\\[\\t]\)\+|/me=e-1
-syntax match DirbufSocket /^\([^\\\t]\|\\[\\t]\)\+=/me=e-1
-syntax match DirbufChar /^\([^\\\t]\|\\[\\t]\)\+%/me=e-1
-syntax match DirbufBlock /^\([^\\\t]\|\\[\\t]\)\+#/me=e-1
+" The suffixes are taken from `ls --classify` and zsh's tab completion.
+function s:SetMatch(group_name, suffix, suffix_len)
+  execute 'syntax match 'a:group_name.' /^\([^\\\t]\|\\[\\t]\)\+'.a:suffix.'\t/me=e-'.(a:suffix_len + 1)
+  execute 'syntax match 'a:group_name.' /^\([^\\\t]\|\\[\\t]\)\+'.a:suffix.'$/me=e-'.(a:suffix_len)
+endfunction
+call s:SetMatch('DirbufFile', '', 0)
+call s:SetMatch('DirbufDirectory', '[/\\]', 1)
+call s:SetMatch('DirbufLink', '@', 1)
+call s:SetMatch('DirbufFifo', '|', 1)
+call s:SetMatch('DirbufSocket', '=', 1)
+call s:SetMatch('DirbufChar', '%', 1)
+call s:SetMatch('DirbufBlock', '$', 1)
 
 " Highlight each object according to its color in by ls --color=always
-highlight link DifbufFile Normal
 function! s:SetColor(group_name, color_num)
   if !exists('g:terminal_color_0')
     execute 'highlight '.a:group_name.' ctermfg='.a:color_num
@@ -32,6 +36,7 @@ function! s:SetColor(group_name, color_num)
     execute 'highlight '.a:group_name.' ctermfg='.a:color_num.' gui=bold guifg='.color
   endif
 endfunction
+highlight link DifbufFile Normal
 call s:SetColor('DirbufDirectory', 4)
 call s:SetColor('DirbufLink', 6)
 call s:SetColor('DirbufFifo', 2)
@@ -48,5 +53,5 @@ highlight link DirbufHash Special
 " ```
 " This finds every except for the regular expression
 " See: https://vim.fandom.com/wiki/Search_for_lines_not_containing_pattern_and_other_helpful_searches#Searching_with_.2F
-syntax match DirbufMalformedLine /^\(\(\_^\([^\\\t]\|\\[\\t]\)\+\(\t#\x\{8}\)\?\s*\_$\)\@!.\)*$/
+syntax match DirbufMalformedLine /^\(\(\_^\([^\\\t]\|\\[\\t]\)\+\\\?\(\t#\x\{8}\)\?\s*\_$\)\@!.\)*$/
 highlight link DirbufMalformedLine Error

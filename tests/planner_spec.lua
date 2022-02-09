@@ -3,8 +3,8 @@ local planner = require("dirbuf.planner")
 
 local FState = fs.FState
 
-local function fst(dispname)
-  return FState.from_dispname(dispname, "")
+local function file(fname)
+  return FState.new(fname, "", "file")
 end
 
 local function apply_plan(fake_fs, plan)
@@ -37,8 +37,8 @@ describe("determine_plan", function()
     local plan = planner.determine_plan {
       new_files = {},
       change_map = {
-        a = {current_fstate = fst("a"), stays = true, progress = "unhandled"},
-        b = {current_fstate = fst("b"), stays = true, progress = "unhandled"},
+        a = {current_fstate = file("a"), stays = true, progress = "unhandled"},
+        b = {current_fstate = file("b"), stays = true, progress = "unhandled"},
       },
     }
 
@@ -53,12 +53,12 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          fst("c"),
-          current_fstate = fst("a"),
+          file("c"),
+          current_fstate = file("a"),
           stays = false,
           progress = "unhandled",
         },
-        b = {current_fstate = fst("b"), stays = true, progress = "unhandled"},
+        b = {current_fstate = file("b"), stays = true, progress = "unhandled"},
       },
     }
 
@@ -72,8 +72,8 @@ describe("determine_plan", function()
     local plan = planner.determine_plan {
       new_files = {},
       change_map = {
-        a = {current_fstate = fst("a"), stays = false, progress = "unhandled"},
-        b = {current_fstate = fst("b"), stays = true, progress = "unhandled"},
+        a = {current_fstate = file("a"), stays = false, progress = "unhandled"},
+        b = {current_fstate = file("b"), stays = true, progress = "unhandled"},
       },
     }
 
@@ -85,9 +85,9 @@ describe("determine_plan", function()
 
   it("create one", function()
     local plan = planner.determine_plan {
-      new_files = {fst("a")},
+      new_files = {file("a")},
       change_map = {
-        b = {current_fstate = fst("b"), stays = true, progress = "unhandled"},
+        b = {current_fstate = file("b"), stays = true, progress = "unhandled"},
       },
     }
 
@@ -102,12 +102,12 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          fst("c"),
-          current_fstate = fst("a"),
+          file("c"),
+          current_fstate = file("a"),
           stays = true,
           progress = "unhandled",
         },
-        b = {current_fstate = fst("b"), stays = true, progress = "unhandled"},
+        b = {current_fstate = file("b"), stays = true, progress = "unhandled"},
       },
     }
 
@@ -122,14 +122,14 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          fst("b"),
-          current_fstate = fst("a"),
+          file("b"),
+          current_fstate = file("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          fst("c"),
-          current_fstate = fst("b"),
+          file("c"),
+          current_fstate = file("b"),
           stays = false,
           progress = "unhandled",
         },
@@ -148,20 +148,20 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          fst("b"),
-          current_fstate = fst("a"),
+          file("b"),
+          current_fstate = file("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          fst("c"),
-          current_fstate = fst("b"),
+          file("c"),
+          current_fstate = file("b"),
           stays = false,
           progress = "unhandled",
         },
         c = {
-          fst("a"),
-          current_fstate = fst("c"),
+          file("a"),
+          current_fstate = file("c"),
           stays = false,
           progress = "unhandled",
         },
@@ -183,15 +183,15 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          fst("b"),
-          current_fstate = fst("a"),
+          file("b"),
+          current_fstate = file("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          fst("a"),
-          fst("c"),
-          current_fstate = fst("b"),
+          file("a"),
+          file("c"),
+          current_fstate = file("b"),
           stays = false,
           progress = "unhandled",
         },
@@ -210,21 +210,21 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          fst("b"),
-          current_fstate = fst("a"),
+          file("b"),
+          current_fstate = file("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          fst("c"),
-          fst("d"),
-          current_fstate = fst("b"),
+          file("c"),
+          file("d"),
+          current_fstate = file("b"),
           stays = false,
           progress = "unhandled",
         },
         c = {
-          fst("a"),
-          current_fstate = fst("c"),
+          file("a"),
+          current_fstate = file("c"),
           stays = false,
           progress = "unhandled",
         },
