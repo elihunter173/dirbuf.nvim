@@ -13,7 +13,7 @@ local function sort_directories_first(left, right)
 end
 
 -- Default config settings
-local conf = {hash_padding = 2, show_hidden = true, sort_order = sort_default}
+local conf = { hash_padding = 2, show_hidden = true, sort_order = sort_default }
 
 function M.update(opts)
   if opts.hash_padding ~= nil then
@@ -41,8 +41,9 @@ function M.update(opts)
       elseif val == "directories_first" then
         val = sort_directories_first
       else
-        return "Unrecognized `sort_order` " .. vim.inspect(val) ..
-                   ". Expected \"default\", \"directories_first\", or function"
+        return "Unrecognized `sort_order` "
+          .. vim.inspect(val)
+          .. '. Expected "default", "directories_first", or function'
       end
     end
     if type(val) ~= "function" then

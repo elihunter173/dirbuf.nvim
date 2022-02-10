@@ -68,8 +68,7 @@ describe("parse_line", function()
   end)
 
   it("escaped tab", function()
-    local err, hash, fname, ftype = buffer.parse_line(
-                                        [[before\tafter	#01234567]])
+    local err, hash, fname, ftype = buffer.parse_line([[before\tafter	#01234567]])
     assert.is_nil(err)
     assert.equal(hash, "01234567")
     assert.equal(fname, [[before	after]])
@@ -77,8 +76,7 @@ describe("parse_line", function()
   end)
 
   it("escaped backslash", function()
-    local err, hash, fname, ftype = buffer.parse_line(
-                                        [[before\\after	#01234567]])
+    local err, hash, fname, ftype = buffer.parse_line([[before\\after	#01234567]])
     assert.is_nil(err)
     assert.equal(hash, "01234567")
     assert.equal(fname, [[before\after]])
@@ -188,9 +186,9 @@ describe("write_dirbuf", function()
   end)
 
   it("escape characters", function()
-    local dirbuf = {dir = "", fstates = {["00000000"] = fst("a\\\t", "file")}}
+    local dirbuf = { dir = "", fstates = { ["00000000"] = fst("a\\\t", "file") } }
     local buf_lines, max_len = buffer.write_dirbuf(dirbuf)
     assert.equal(max_len, #[[a\\\t]])
-    assert.same(buf_lines, {[[a\\\t	#00000000]]})
+    assert.same(buf_lines, { [[a\\\t	#00000000]] })
   end)
 end)

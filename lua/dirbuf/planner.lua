@@ -2,8 +2,7 @@ local buffer = require("dirbuf.buffer")
 local fs = require("dirbuf.fs")
 
 local FState = fs.FState
-local create, copy, delete, move = fs.plan.create, fs.plan.copy, fs.plan.delete,
-                                   fs.plan.move
+local create, copy, delete, move = fs.plan.create, fs.plan.copy, fs.plan.delete, fs.plan.move
 
 local M = {}
 
@@ -60,12 +59,10 @@ function M.build_changes(dirbuf, lines)
 
     if hash == nil then
       table.insert(new_files, dst_fstate)
-
     else
       local current_fstate = dirbuf.fstates[hash]
       if current_fstate.ftype ~= dst_fstate.ftype then
-        return string.format("line %d: cannot change %s -> %s", lnum,
-                             current_fstate.ftype, dst_fstate.ftype)
+        return string.format("line %d: cannot change %s -> %s", lnum, current_fstate.ftype, dst_fstate.ftype)
       end
 
       if current_fstate.fname == dst_fstate.fname then
@@ -79,7 +76,7 @@ function M.build_changes(dirbuf, lines)
     ::continue::
   end
 
-  return nil, {change_map = change_map, new_files = new_files}
+  return nil, { change_map = change_map, new_files = new_files }
 end
 
 local function resolve_change(plan, change_map, change)
@@ -119,7 +116,6 @@ local function resolve_change(plan, change_map, change)
         -- We handle this later
         stuck_fstate = dst_fstate
         goto continue
-
       else
         -- We can handle the dependent_change directly
         -- Double check that my assumption holds
@@ -150,11 +146,9 @@ local function resolve_change(plan, change_map, change)
     if move_to ~= nil then
       -- We have a safe place to copy from
       post_resolution_action = copy(move_to, stuck_fstate)
-
     elseif change.stays then
       -- We have a safe place to copy from
       post_resolution_action = copy(change.current_fstate, stuck_fstate)
-
     else
       -- We have NO safe place to copy from and we don't stay, so move to a
       -- temporary and then move again

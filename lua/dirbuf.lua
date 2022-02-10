@@ -45,7 +45,7 @@ local function fill_dirbuf(buf, on_fname)
   api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
 
   if fname_line ~= nil then
-    api.nvim_win_set_cursor(CURRENT_WINDOW, {fname_line, 0})
+    api.nvim_win_set_cursor(CURRENT_WINDOW, { fname_line, 0 })
   end
 
   api.nvim_buf_set_option(buf, "modified", false)
@@ -162,9 +162,7 @@ function M.enter()
   local fname = vim.b.dirbuf.fstates[hash].fname
 
   if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
-    api.nvim_err_writeln(string.format(
-                             "Cannot enter '%s'. Dirbuf must be saved first",
-                             fname))
+    api.nvim_err_writeln(string.format("Cannot enter '%s'. Dirbuf must be saved first", fname))
     return
   end
 
@@ -213,18 +211,12 @@ local function fmt_action(action)
     else
       return "touch " .. fmt_fstate(action.fstate)
     end
-
   elseif action.type == "copy" then
-    return "cp " .. fmt_fstate(action.src_fstate) .. " " ..
-               fmt_fstate(action.dst_fstate)
-
+    return "cp " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate)
   elseif action.type == "delete" then
     return "rm " .. fmt_fstate(action.fstate)
-
   elseif action.type == "move" then
-    return "mv " .. fmt_fstate(action.src_fstate) .. " " ..
-               fmt_fstate(action.dst_fstate)
-
+    return "mv " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate)
   else
     error("Unrecognized action: " .. vim.inspect(action))
   end
@@ -269,13 +261,11 @@ function M.sync(opt)
     for _, action in ipairs(plan) do
       print(fmt_action(action))
     end
-
   else
     err = planner.execute_plan(plan)
     if err ~= nil then
       api.nvim_err_writeln("Error making changes: " .. err)
-      api.nvim_err_writeln(
-          "WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
+      api.nvim_err_writeln("WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
       return
     end
 

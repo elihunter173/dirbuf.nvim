@@ -14,9 +14,7 @@ end
 --]]
 
 local function is_suffix(c)
-  return
-      c == "/" or c == "\\" or c == "@" or c == "|" or c == "=" or c == "%" or c ==
-          "#"
+  return c == "/" or c == "\\" or c == "@" or c == "|" or c == "=" or c == "%" or c == "#"
 end
 
 -- These suffixes are taken from `ls --classify` and zsh's tab completion
@@ -36,9 +34,9 @@ local function suffix_to_ftype(suffix)
   elseif suffix == "#" then
     return "block"
   else
-    error(string.format(
-              "Unrecognized suffix %s. This should be impossible and is a bug in dirbuf.",
-              vim.inspect(suffix)))
+    error(
+      string.format("Unrecognized suffix %s. This should be impossible and is a bug in dirbuf.", vim.inspect(suffix))
+    )
   end
 end
 
@@ -58,9 +56,7 @@ local function ftype_to_suffix(ftype)
   elseif ftype == "block" then
     return "#"
   else
-    error(string.format(
-              "Unrecognized ftype %s. This should be impossible and is a bug in dirbuf",
-              vim.inspect(ftype)))
+    error(string.format("Unrecognized ftype %s. This should be impossible and is a bug in dirbuf", vim.inspect(ftype)))
   end
 end
 
@@ -97,10 +93,8 @@ local function parse_fname(chars)
       else
         return string.format("Invalid escape sequence '\\%s'", next_c)
       end
-
     elseif is_suffix(c) then
       last_suffix = c
-
     else
       last_suffix = nil
       table.insert(string_builder, c)
@@ -183,7 +177,7 @@ function M.write_dirbuf(dirbuf, track_fname)
   -- the issue where hashes can collide
   local ir = {}
   for hash, fstate in pairs(dirbuf.fstates) do
-    table.insert(ir, {fstate, hash})
+    table.insert(ir, { fstate, hash })
   end
   local comp = config.get("sort_order")
   table.sort(ir, function(l, r)
@@ -212,7 +206,7 @@ function M.write_dirbuf(dirbuf, track_fname)
 end
 
 function M.create_dirbuf(dir, show_hidden)
-  local dirbuf = {dir = dir, fstates = {}}
+  local dirbuf = { dir = dir, fstates = {} }
 
   local handle, err, _ = uv.fs_scandir(dir)
   if handle == nil then
@@ -232,8 +226,7 @@ function M.create_dirbuf(dir, show_hidden)
     local hash = FState.hash(fstate)
     if dirbuf.fstates[hash] ~= nil then
       -- This should never happen
-      error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash,
-                          dirbuf.fstates[hash].path, fstate.path))
+      error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash, dirbuf.fstates[hash].path, fstate.path))
     end
     dirbuf.fstates[hash] = fstate
 

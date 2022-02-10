@@ -37,7 +37,7 @@ end
 
 function M.join_paths(...)
   local string_builder = {}
-  for _, path in ipairs({...}) do
+  for _, path in ipairs({ ... }) do
     if path:sub(-1, -1) == M.path_separator then
       path = path:sub(0, -2)
     end
@@ -73,7 +73,7 @@ M.FState = {}
 local FState = M.FState
 
 function FState.new(fname, parent, ftype)
-  return {fname = fname, path = M.join_paths(parent, fname), ftype = ftype}
+  return { fname = fname, path = M.join_paths(parent, fname), ftype = ftype }
 end
 
 function FState.temp(ftype)
@@ -95,7 +95,7 @@ M.plan = {}
 M.actions = {}
 
 function M.plan.create(fstate)
-  return {type = "create", fstate = fstate}
+  return { type = "create", fstate = fstate }
 end
 
 local DEFAULT_FILE_MODE = tonumber("644", 8)
@@ -119,13 +119,11 @@ function M.actions.create(args)
     if not success then
       return err
     end
-
   elseif fstate.ftype == "directory" then
     local success, err = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
     if not success then
       return err
     end
-
   else
     return string.format("Cannot create %s", fstate.ftype)
   end
@@ -146,13 +144,11 @@ local function cp(src_path, dst_path, ftype)
       if next_fname == nil then
         break
       end
-      err = cp(M.join_paths(src_path, next_fname),
-               M.join_paths(dst_path, next_fname), next_ftype)
+      err = cp(M.join_paths(src_path, next_fname), M.join_paths(dst_path, next_fname), next_ftype)
       if err ~= nil then
         return err
       end
     end
-
   else
     local ok, err, _ = uv.fs_copyfile(src_path, dst_path)
     if not ok then
@@ -163,7 +159,7 @@ local function cp(src_path, dst_path, ftype)
 end
 
 function M.plan.copy(src_fstate, dst_fstate)
-  return {type = "copy", src_fstate = src_fstate, dst_fstate = dst_fstate}
+  return { type = "copy", src_fstate = src_fstate, dst_fstate = dst_fstate }
 end
 
 function M.actions.copy(args)
@@ -190,7 +186,6 @@ local function rm(path, ftype)
       return err
     end
     return nil
-
   else
     local ok, err, _ = uv.fs_unlink(path)
     if not ok then
@@ -201,7 +196,7 @@ local function rm(path, ftype)
 end
 
 function M.plan.delete(fstate)
-  return {type = "delete", fstate = fstate}
+  return { type = "delete", fstate = fstate }
 end
 
 function M.actions.delete(args)
@@ -210,7 +205,7 @@ function M.actions.delete(args)
 end
 
 function M.plan.move(src_fstate, dst_fstate)
-  return {type = "move", src_fstate = src_fstate, dst_fstate = dst_fstate}
+  return { type = "move", src_fstate = src_fstate, dst_fstate = dst_fstate }
 end
 
 function M.actions.move(args)
@@ -221,8 +216,7 @@ function M.actions.move(args)
   end
   local ok, err, _ = uv.fs_rename(src_fstate.path, dst_fstate.path)
   if not ok then
-    return string.format("Move failed for %s -> %s: %s", src_fstate.path,
-                         dst_fstate.path, err)
+    return string.format("Move failed for %s -> %s: %s", src_fstate.path, dst_fstate.path, err)
   end
 end
 
