@@ -1,7 +1,7 @@
 # dirbuf.nvim
 
 A directory buffer for Neovim that lets you edit your filesystem like you edit
-text. Inspired by [dirvish.vim] and [vidir].
+text. Inspired by [vim-dirvish] and [vidir].
 
 ## Features
 
@@ -97,7 +97,7 @@ This will download [plenary.nvim]'s test harness and run the `*_spec.lua` tests
 in `tests/`.
 
 [carbon.nvim]: https://github.com/SidOfc/carbon.nvim
-[dirvish.vim]: https://github.com/justinmk/vim-dirvish
+[vim-dirvish]: https://github.com/justinmk/vim-dirvish
 [fern.vim]: https://github.com/lambdalisue/fern.vim
 [nvim-tree.lua]: https://github.com/kyazdani42/nvim-tree.lua
 [packer.nvim]: https://github.com/wbthomason/packer.nvim

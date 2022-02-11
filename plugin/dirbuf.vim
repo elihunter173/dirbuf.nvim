@@ -10,7 +10,7 @@ function! s:DirbufSyncOptions(arg_lead, cmd_line, cursor_pos)
   return filter(options, 'v:val =~ "^'.a:arg_lead.'"')
 endfunction
 
-" This (dirbuf_up) mapping was from dirvish.vim
+" This (dirbuf_up) mapping was taken from vim-dirvish
 noremap <silent> <unique> <Plug>(dirbuf_up)
       \ <cmd>execute 'Dirbuf %:p'.repeat(':h', v:count1 + isdirectory(expand('%')))<cr>
 noremap <silent> <unique> <Plug>(dirbuf_enter)
