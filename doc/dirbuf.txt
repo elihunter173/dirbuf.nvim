@@ -26,7 +26,7 @@ changed (i.e. their hash does not match their name).
 
 Because each Dirbuf buffer name is the literal directory path, you can run any
 |:!| commands you want and prefix the filenames with |%|. For example, >
-  :!sed 's/hi/ahoy/g' %pirate_script.txt -i
+    :!sed 's/hi/ahoy/g' %/pirate_script.txt -i
 
 Dirbuf is designed to work with built-in Vim concepts as much as possible. Tim
 Pope's plugins demonstrate this theme; more plugins should too. Re-use of
@@ -67,7 +67,6 @@ COMMANDS                                                       *dirbuf-commands*
     Opens the directory at {path}, or its parent if {path} is a file.
     To open the directory of the current file: >
         :Dirbuf %
-<
 
 :DirbufSync [{flag}]                                        *dirbuf-:DirbufSync*
     Saves and refreshes the current directory buffer, syncing its state with
@@ -92,10 +91,21 @@ dirbuf.setup({opts})                                            *dirbuf-setup()*
             show_hidden = true,
             sort_order = "default",
         }
-<
 
 ==============================================================================
 OPTIONS                                                         *dirbuf-options*
+
+|hash_first| (default: `true`)
+    Whether a file's hash should appear before its name within the lines of a
+    directory buffer.
+
+    If `true`, then lines in a directory buffer will look similiar to this: >
+        #deadbeef   file
+        #deadbee5   directory/
+<
+    If `false`, they will look similiar to this: >
+        file         #deadbeef
+        directory/   #deadbee5
 
 |hash_padding| (default: `2`)
     Number of characters of padding between the file hashes and the longest
@@ -110,19 +120,20 @@ OPTIONS                                                         *dirbuf-options*
     What order Dirbuf should sort the directory buffer in when it is created
     and refreshed.
 
-    This must be either a string or a comparison function.
+    This must be given as either a `string` or a `function`.
 
-    If it is a string, then it must be one of the following values
+    If a `string` is given, then it must have one of the following values.
     Values: ~
-       "default"            sort case-insensitively by {fname}s
+       "default"            sort case-insensitively by {fname}
        "directories_first"  groups files of like {ftype} and then sort within
                             groups case-insensitively by {fname}
 
-    If it is a comparison function, it must take two tables {left} and
-    {right}, each describing a filesystem entry, which returns `true` when
-    {left} should appear before (i.e. above) {right} in the directory buffer.
+    If a `function` is given, it must be a comparison function which takes two
+    tables {left} and {right}, each describing a filesystem entry, which
+    returns `true` when {left} should appear before (i.e. above) {right} in
+    the directory buffer.
 
-    Both of the tables {left} and {right} have the following fields
+    Both of the tables {left} and {right} have the following fields.
     Fields: ~
        {fname}  `string` containing the literal, unescaped name of the
                 filesystem entry without any suffixes (e.g. a directory

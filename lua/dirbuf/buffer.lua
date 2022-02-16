@@ -91,7 +91,7 @@ local function parse_fname(chars)
         last_suffix = nil
         table.insert(string_builder, "\t")
       else
-        return string.format("Invalid escape sequence '\\%s'", next_c)
+        return string.format("Invalid escape sequence %s", vim.inspect(c .. next_c))
       end
     elseif is_suffix(c) then
       last_suffix = c
@@ -116,7 +116,7 @@ local function parse_hash(chars)
     -- Ended line before hash
     return nil, nil
   elseif c ~= "#" then
-    return string.format("Unexpected character '%s' after fname", c)
+    return string.format("Unexpected character %s after fname", vim.inspect(c))
   end
 
   local string_builder = {}
@@ -125,7 +125,7 @@ local function parse_hash(chars)
     if c == nil then
       return "Unexpected end of line in hash"
     elseif not c:match("%x") then
-      return string.format("Invalid hash character '%s'", c)
+      return string.format("Invalid hash character %s", vim.inspect(c))
     else
       table.insert(string_builder, c)
     end
@@ -139,31 +139,54 @@ end
 -- so I manually build the parser. It also gives nicer error messages.
 --
 -- Returns err, hash, fname, ftype
-function M.parse_line(line)
+function M.parse_line(line, opts)
   local chars = line:gmatch(".")
 
-  local err, fname, ftype = parse_fname(chars)
-  if err ~= nil then
-    return err
-  end
-
-  local hash
-  err, hash = parse_hash(chars)
-  if err ~= nil then
-    return err
-  end
-
-  -- Consume trailing whitespace
-  while true do
-    local c = chars()
-    if c == nil then
-      break
-    elseif not c:match("%s") then
-      return string.format("Unexpected character '%s' after hash", c)
+  if opts.hash_first then
+    -- We throw away the error because if there's an error in parsing the hash,
+    -- we treat the whole thing as an fname
+    local _, hash = parse_hash(chars)
+    if hash == nil or chars() ~= "\t" then
+      hash = nil
+      chars = line:gmatch(".")
     end
-  end
 
-  return nil, hash, fname, ftype
+    local err, fname, ftype = parse_fname(chars)
+    if err ~= nil then
+      return err
+    end
+
+    -- Ensure that we parsed the whole line
+    local c = chars()
+    if c ~= nil then
+      return string.format("Unexpected character %s after fname", vim.inspect(c))
+    end
+
+    return nil, hash, fname, ftype
+  else
+    local err, fname, ftype = parse_fname(chars)
+    if err ~= nil then
+      return err
+    end
+
+    local hash
+    err, hash = parse_hash(chars)
+    if err ~= nil then
+      return err
+    end
+
+    -- Consume trailing whitespace
+    while true do
+      local c = chars()
+      if c == nil then
+        break
+      elseif not c:match("%s") then
+        return string.format("Unexpected character %s after hash", vim.inspect(c))
+      end
+    end
+
+    return nil, hash, fname, ftype
+  end
 end
 
 function M.display_fstate(fstate)
@@ -171,7 +194,7 @@ function M.display_fstate(fstate)
   return escaped .. ftype_to_suffix(fstate.ftype)
 end
 
-function M.write_dirbuf(dirbuf, track_fname)
+function M.write_dirbuf(dirbuf, opts, track_fname)
   -- TODO: This would be cleaner if we stored dirbufs with an index instead of
   -- a key that was sorted in sort_order to begin with. This would also prevent
   -- the issue where hashes can collide
@@ -199,7 +222,11 @@ function M.write_dirbuf(dirbuf, track_fname)
     if #display > max_len then
       max_len = #display
     end
-    table.insert(buf_lines, display .. "\t#" .. hash)
+    if opts.hash_first then
+      table.insert(buf_lines, "#" .. hash .. "\t" .. display)
+    else
+      table.insert(buf_lines, display .. "\t#" .. hash)
+    end
   end
 
   return buf_lines, max_len, fname_line

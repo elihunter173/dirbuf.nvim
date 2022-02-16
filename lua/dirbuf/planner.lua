@@ -28,7 +28,7 @@ end
 --]]
 
 -- TODO: I wish I didn't just store lines, but I'm not sure how to better do it
-function M.build_changes(dirbuf, lines)
+function M.build_changes(dirbuf, lines, parse_opts)
   local new_files = {}
   local change_map = {}
   for _, fstate in pairs(dirbuf.fstates) do
@@ -43,7 +43,7 @@ function M.build_changes(dirbuf, lines)
   local used_fnames = {}
   -- Go through every line and build changes
   for lnum, line in ipairs(lines) do
-    local err, hash, fname, ftype = buffer.parse_line(line)
+    local err, hash, fname, ftype = buffer.parse_line(line, parse_opts)
     if err ~= nil then
       return string.format("Line %d: %s", lnum, err)
     end

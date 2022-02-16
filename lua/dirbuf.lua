@@ -39,14 +39,25 @@ local function fill_dirbuf(buf, on_fname)
     return err
   end
 
-  local buf_lines, max_len, fname_line = buffer.write_dirbuf(dirbuf, on_fname)
+  local hash_first = config.get("hash_first")
+  local buf_lines, max_len, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = hash_first }, on_fname)
   api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
   api.nvim_buf_set_var(buf, "dirbuf", dirbuf)
-  api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
 
-  if fname_line ~= nil then
-    api.nvim_win_set_cursor(CURRENT_WINDOW, { fname_line, 0 })
+  if hash_first then
+    api.nvim_buf_set_option(buf, "tabstop", #"#" + fs.HASH_LEN + config.get("hash_padding"))
+  else
+    api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
   end
+
+  local cursor_line, cursor_col = 1, 0
+  if hash_first then
+    cursor_col = #"#" + fs.HASH_LEN + #"\t"
+  end
+  if fname_line ~= nil then
+    cursor_line = fname_line
+  end
+  api.nvim_win_set_cursor(CURRENT_WINDOW, { cursor_line, cursor_col })
 
   api.nvim_buf_set_option(buf, "modified", false)
 
@@ -108,6 +119,13 @@ function M.init_dirbuf(from_path)
   end
 end
 
+local function get_cursor_fname()
+  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line(), {
+    hash_first = config.get("hash_first"),
+  })
+  return err, fname
+end
+
 -- If `path` is a file, this returns the absolute path to its parent. Otherwise
 -- it returns the absolute path of `path`.
 local function directify(path)
@@ -127,7 +145,7 @@ function M.open(path)
   local from_path = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
   if from_path == path then
     -- If we're not leaving, we want to keep the cursor on the same line
-    local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
+    local err, fname = get_cursor_fname()
     if err ~= nil then
       api.nvim_err_writeln("Error placing cursor: " .. err)
       return
@@ -153,14 +171,11 @@ function M.enter()
 
   local dir = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
 
-  local line = api.nvim_get_current_line()
-  local err, hash, _, _ = buffer.parse_line(line)
+  local err, fname = get_cursor_fname()
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
   end
-  local fname = vim.b.dirbuf.fstates[hash].fname
-
   if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
     api.nvim_err_writeln(string.format("Cannot enter '%s'. Dirbuf must be saved first", fname))
     return
@@ -249,7 +264,7 @@ function M.sync(opt)
   local dirbuf = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf")
   local lines = api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)
   local changes
-  err, changes = planner.build_changes(dirbuf, lines)
+  err, changes = planner.build_changes(dirbuf, lines, { hash_first = config.get("hash_first") })
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -271,7 +286,7 @@ function M.sync(opt)
 
     -- Leave cursor on the same file
     local fname
-    err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
+    err, fname = get_cursor_fname()
     if err ~= nil then
       api.nvim_err_writeln(err)
       return
@@ -292,7 +307,7 @@ function M.toggle_hide()
 
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- Leave cursor on the same file
-  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
+  local err, fname = get_cursor_fname()
   if err ~= nil then
     api.nvim_err_writeln(err)
     return

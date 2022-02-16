@@ -13,9 +13,22 @@ local function sort_directories_first(left, right)
 end
 
 -- Default config settings
-local conf = { hash_padding = 2, show_hidden = true, sort_order = sort_default }
+local conf = {
+  hash_first = true,
+  hash_padding = 2,
+  show_hidden = true,
+  sort_order = sort_default,
+}
 
 function M.update(opts)
+  if opts.hash_first ~= nil then
+    local val = opts.hash_first
+    if type(val) ~= "boolean" then
+      return "`hash_first` must be boolean, received " .. type(val)
+    end
+    conf.hash_first = val
+  end
+
   if opts.hash_padding ~= nil then
     local val = opts.hash_padding
     if type(val) ~= "number" or math.floor(val) ~= val or val < 1 then
@@ -56,6 +69,11 @@ function M.update(opts)
 end
 
 function M.get(opt)
+  -- This sanity check ensures we don't typo a true/false option and get a
+  -- falsey response of nil
+  if conf[opt] == nil then
+    error("Unrecognized option: " .. opt)
+  end
   return conf[opt]
 end
 

@@ -7,14 +7,38 @@ local function fst(fname, ftype)
 end
 
 describe("parse_line", function()
+  local function expect_parse(hash_first_line, hash_last_line, expected)
+    local err, hash, fname, ftype = buffer.parse_line(hash_first_line, { hash_first = true })
+    if expected.err then
+      assert.is_not_nil(err)
+    else
+      assert.is_nil(err)
+    end
+    assert.equal(expected.hash, hash)
+    assert.equal(expected.fname, fname)
+    assert.equal(expected.ftype, ftype)
+
+    err, hash, fname, ftype = buffer.parse_line(hash_last_line, { hash_first = false })
+    if expected.err then
+      assert.is_not_nil(err)
+    else
+      assert.is_nil(err)
+    end
+    assert.equal(expected.hash, hash)
+    assert.equal(expected.fname, fname)
+    assert.equal(expected.ftype, ftype)
+  end
+
   local function test_suffix(expected_ftype, suffix)
     it("ftype " .. expected_ftype .. suffix, function()
-      local line = "foo" .. suffix .. "\t#deadbeef"
-      local err, hash, fname, ftype = buffer.parse_line(line)
-      assert.is_nil(err)
-      assert.equal(hash, "deadbeef")
-      assert.equal(fname, "foo")
-      assert.equal(ftype, expected_ftype)
+      local hash_first_line = "#deadbeef\tfoo" .. suffix
+      local hash_last_line = "foo" .. suffix .. "\t#deadbeef"
+      expect_parse(hash_first_line, hash_last_line, {
+        err = false,
+        hash = "deadbeef",
+        fname = "foo",
+        ftype = expected_ftype,
+      })
     end)
   end
 
@@ -28,131 +52,146 @@ describe("parse_line", function()
   test_suffix("block", "#")
 
   it("interior @", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo@bar	#01234567]])
-    assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, [[foo@bar]])
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567	foo@bar]], [[foo@bar	#01234567]], {
+      err = false,
+      hash = "01234567",
+      fname = "foo@bar",
+      ftype = "file",
+    })
   end)
 
   it("interior /", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo/bar	#01234567]])
-    assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, [[foo/bar]])
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567	foo/bar]], [[foo/bar	#01234567]], {
+      err = false,
+      hash = "01234567",
+      fname = "foo/bar",
+      ftype = "file",
+    })
   end)
 
   it("only fname", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo]])
-    assert.is_nil(err)
-    assert.is_nil(hash)
-    assert.equal(fname, "foo")
-    assert.equal(ftype, "file")
+    expect_parse([[foo]], [[foo]], {
+      err = false,
+      hash = nil,
+      fname = "foo",
+      ftype = "file",
+    })
   end)
 
   it("only hash", function()
-    local err, hash, fname, ftype = buffer.parse_line([[#01234567]])
-    assert.is_nil(err)
-    assert.is_nil(hash)
-    assert.equal(fname, "#01234567")
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567]], [[#01234567]], {
+      err = false,
+      hash = nil,
+      fname = "#01234567",
+      ftype = "file",
+    })
   end)
 
   it("spaces", function()
-    local err, hash, fname, ftype = buffer.parse_line([[ a b c 	#01234567]])
-    assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, " a b c ")
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567	 a b c ]], [[ a b c 	#01234567]], {
+      err = false,
+      hash = "01234567",
+      fname = " a b c ",
+      ftype = "file",
+    })
   end)
 
   it("escaped tab", function()
-    local err, hash, fname, ftype = buffer.parse_line([[before\tafter	#01234567]])
-    assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, [[before	after]])
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567	before\tafter]], [[before\tafter	#01234567]], {
+      err = false,
+      hash = "01234567",
+      fname = [[before	after]],
+      ftype = "file",
+    })
   end)
 
   it("escaped backslash", function()
-    local err, hash, fname, ftype = buffer.parse_line([[before\\after	#01234567]])
-    assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, [[before\after]])
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567	before\\after]], [[before\\after	#01234567]], {
+      err = false,
+      hash = "01234567",
+      fname = [[before\after]],
+      ftype = "file",
+    })
   end)
 
   it("escaped backslash end", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo\\	#01234567]])
-    assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, [[foo\]])
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567	foo\\]], [[foo\\	#01234567]], {
+      err = false,
+      hash = "01234567",
+      fname = [[foo\]],
+      ftype = "file",
+    })
   end)
 
   it("unescaped tab", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo	bar	#01234567]])
-    assert.is_not_nil(err)
-    assert.is_nil(hash)
-    assert.is_nil(fname)
-    assert.is_nil(ftype)
+    expect_parse([[#01234567	foo	bar]], [[foo	bar	#01234567]], {
+      err = true,
+      hash = nil,
+      fname = nil,
+      ftype = nil,
+    })
   end)
 
   it("invalid escape sequence", function()
-    local err, hash, fname, ftype = buffer.parse_line([[\a  #01234567]])
-    assert.is_not_nil(err)
-    assert.is_nil(hash)
-    assert.is_nil(fname)
-    assert.is_nil(ftype)
+    expect_parse([[ #01234567	\a]], [[\a  #01234567]], {
+      err = true,
+      hash = nil,
+      fname = nil,
+      ftype = nil,
+    })
   end)
 
   it("short hash", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo	#0123456]])
-    assert.is_not_nil(err)
-    assert.is_nil(hash)
-    assert.is_nil(fname)
-    assert.is_nil(ftype)
+    expect_parse([[#0123456	foo]], [[foo	#0123456]], {
+      err = true,
+      hash = nil,
+      fname = nil,
+      ftype = nil,
+    })
   end)
 
   it("long hash", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo	#012345678]])
-    assert.is_not_nil(err)
-    assert.is_nil(hash)
-    assert.is_nil(fname)
-    assert.is_nil(ftype)
+    expect_parse([[#012345678	foo]], [[foo	#012345678]], {
+      err = true,
+      hash = nil,
+      fname = nil,
+      ftype = nil,
+    })
   end)
 
   it("invalid hex character hash", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo	#0123456z]])
-    assert.is_not_nil(err)
-    assert.is_nil(hash)
-    assert.is_nil(fname)
-    assert.is_nil(ftype)
+    expect_parse([[#0123456z	foo]], [[foo	#0123456z]], {
+      err = true,
+      hash = nil,
+      fname = nil,
+      ftype = nil,
+    })
   end)
 
   it("trailing spaces after hash", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo	#01234567  ]])
+    local err, hash, fname, ftype = buffer.parse_line([[foo	#01234567  ]], { hash_first = false })
     assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, "foo")
-    assert.equal(ftype, "file")
+    assert.equal("01234567", hash)
+    assert.equal("foo", fname)
+    assert.equal("file", ftype)
   end)
 
   it("trailing spaces no hash", function()
-    local err, hash, fname, ftype = buffer.parse_line([[foo  ]])
-    assert.is_nil(err)
-    assert.is_nil(hash)
-    assert.equal(fname, [[foo  ]])
-    assert.equal(ftype, "file")
+    expect_parse([[foo  ]], [[foo  ]], {
+      err = false,
+      hash = nil,
+      fname = "foo  ",
+      ftype = "file",
+    })
   end)
 
   it("non-ASCII fname", function()
-    local err, hash, fname, ftype = buffer.parse_line([[文档	#01234567]])
-    assert.is_nil(err)
-    assert.equal(hash, "01234567")
-    assert.equal(fname, "文档")
-    assert.equal(ftype, "file")
+    expect_parse([[#01234567	文档]], [[文档	#01234567]], {
+      err = false,
+      hash = "01234567",
+      fname = "文档",
+      ftype = "file",
+    })
   end)
 end)
 
@@ -170,10 +209,10 @@ describe("write_dirbuf", function()
         ["00000006"] = fst("block", "block"),
       },
     }
-    local buf_lines, max_len = buffer.write_dirbuf(dirbuf)
-    assert.equal(max_len, #"directory/")
-    -- LuaFormatter off
-    assert.same(buf_lines, {
+
+    local buf_lines, max_len = buffer.write_dirbuf(dirbuf, { hash_first = false })
+    assert.equal(#"directory/", max_len)
+    assert.same({
       "block#	#00000006",
       "char%	#00000005",
       "directory/	#00000001",
@@ -181,14 +220,41 @@ describe("write_dirbuf", function()
       "file	#00000000",
       "link@	#00000002",
       "socket=	#00000004",
-    })
-    -- LuaFormatter on
+    }, buf_lines)
+
+    buf_lines, _ = buffer.write_dirbuf(dirbuf, { hash_first = true })
+    assert.same({
+      "#00000006	block#",
+      "#00000005	char%",
+      "#00000001	directory/",
+      "#00000003	fifo|",
+      "#00000000	file",
+      "#00000002	link@",
+      "#00000004	socket=",
+    }, buf_lines)
   end)
 
   it("escape characters", function()
     local dirbuf = { dir = "", fstates = { ["00000000"] = fst("a\\\t", "file") } }
-    local buf_lines, max_len = buffer.write_dirbuf(dirbuf)
-    assert.equal(max_len, #[[a\\\t]])
+    local buf_lines, max_len = buffer.write_dirbuf(dirbuf, { hash_first = false })
+    assert.equal(#[[a\\\t]], max_len)
     assert.same(buf_lines, { [[a\\\t	#00000000]] })
+    buf_lines, _ = buffer.write_dirbuf(dirbuf, { hash_first = true })
+    assert.same({ [[#00000000	a\\\t]] }, buf_lines)
+  end)
+
+  it("track_fname", function()
+    local dirbuf = {
+      dir = "",
+      fstates = {
+        ["00000000"] = fst("a", "file"),
+        ["00000001"] = fst("b", "file"),
+        ["00000002"] = fst("c", "file"),
+      },
+    }
+    local _, _, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = true }, "b")
+    assert.equal(2, fname_line)
+    _, _, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = false }, "b")
+    assert.equal(2, fname_line)
   end)
 end)

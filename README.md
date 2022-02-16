@@ -16,7 +16,7 @@ text. Inspired by [vim-dirvish] and [vidir].
 * *Polite:* Plays nicely with tree-based file viewers like [nvim-tree.lua],
   [fern.vim], and [carbon.nvim].
 
-https://user-images.githubusercontent.com/42009212/149638284-c944bbcc-bb25-4bd5-b8a3-994d03c79d95.mp4
+https://user-images.githubusercontent.com/42009212/154371256-6421e01c-e54b-4436-8999-6f8516f2a624.mp4
 
 ## Installation
 
@@ -76,6 +76,7 @@ default values listed.
 
 ```lua
 require("dirbuf").setup {
+    hash_first = true,
     hash_padding = 2,
     show_hidden = true,
     sort_order = "default",
