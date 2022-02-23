@@ -27,8 +27,11 @@ jobs:
           curl -sL https://github.com/neovim/neovim/releases/download/${{ matrix.nvim-version }}/nvim-linux64.tar.gz \
             | tar xzf - --strip-components=1 -C ./neovim
 
+      - name: Install Just
+        uses: extractions/setup-just@v1
+
       - name: Run tests
         run: |
           export PATH="./neovim/bin:$PATH"
           export VIM="./neovim/share/nvim/runtime"
-          make test
+          just test
