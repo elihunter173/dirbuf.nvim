@@ -88,20 +88,24 @@ dirbuf-options`).
 
 ## Development
 
-Run the following command to run the tests.
+A [Justfile][just] is provided to test and lint the project.
 
 ```sh
-$ make test
+# Run unit tests
+$ just test
+# Run luacheck
+$ just lint
 ```
 
-This will download [plenary.nvim]'s test harness and run the `*_spec.lua` tests
-in `tests/`.
+`just test` will automatically download [plenary.nvim]'s test harness and run
+the `*_spec.lua` tests in `tests/`.
 
 [carbon.nvim]: https://github.com/SidOfc/carbon.nvim
-[vim-dirvish]: https://github.com/justinmk/vim-dirvish
 [fern.vim]: https://github.com/lambdalisue/fern.vim
+[just]: https://github.com/casey/just
 [nvim-tree.lua]: https://github.com/kyazdani42/nvim-tree.lua
 [packer.nvim]: https://github.com/wbthomason/packer.nvim
 [plenary.nvim]: https://github.com/nvim-lua/plenary.nvim
 [vidir]: https://github.com/trapd00r/vidir
+[vim-dirvish]: https://github.com/justinmk/vim-dirvish
 [vim-plug]: https://github.com/junegunn/vim-plug
