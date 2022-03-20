@@ -82,7 +82,7 @@ COMMANDS                                                       *dirbuf-commands*
 ==============================================================================
 FUNCTIONS                                                     *dirbuf-functions*
 
-dirbuf.setup({opts})                                            *dirbuf-setup()*
+dirbuf.setup({opts})                                            *dirbuf.setup()*
     Overwrites the default options with the options in the `opts` table.
 
     Example with all the default options: >
@@ -91,6 +91,12 @@ dirbuf.setup({opts})                                            *dirbuf-setup()*
             show_hidden = true,
             sort_order = "default",
         }
+
+
+dirbuf.get_cursor_path()                              *dirbuf.get_cursor_path()*
+    Returns the absolute path of the filesystem entry under the cursor in the
+    current directory buffer. If there are any errors parsing the current
+    line, then this `error()`s with a descriptive error message.
 
 ==============================================================================
 OPTIONS                                                         *dirbuf-options*

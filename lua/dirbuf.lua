@@ -18,7 +18,7 @@ function M.setup(opts)
   end
 end
 
--- fill_dirbuf fills buffer `buf` with the contents of its corresponding
+-- `fill_dirbuf` fills buffer `buf` with the contents of its corresponding
 -- directory. `buf` must have the name of a valid directory.
 --
 -- If `on_fname` is set, then the cursor will be put on the line corresponding
@@ -64,17 +64,13 @@ local function fill_dirbuf(buf, on_fname)
   return nil
 end
 
-local function set_dirbuf_opts(buf)
-  api.nvim_buf_set_option(buf, "filetype", "dirbuf")
-  api.nvim_buf_set_option(buf, "buftype", "acwrite")
-  api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-
-  local ok, _ = pcall(api.nvim_buf_get_var, buf, "dirbuf_show_hidden")
-  if not ok then
-    api.nvim_buf_set_var(buf, "dirbuf_show_hidden", config.get("show_hidden"))
-  end
-end
-
+-- `normalize_path` takes a `path` entered by the user, potentially containing
+-- duplicate path separators, "..", or trailing path separators, and ensures
+-- that all duplicate path separators are removed, there is no trailing path
+-- separator, and all ".."s are simplified. This does not resolve symlinks.
+--
+-- This exists to ensure that all paths are displayed in a consistent way and
+-- to simplify path manipulation logic.
 local function normalize_path(path)
   path = vim.fn.simplify(path)
   -- On Windows, simplify keeps the path_separator on directories
@@ -90,6 +86,7 @@ function M.init_dirbuf(from_path)
   local path = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
   api.nvim_buf_set_name(CURRENT_BUFFER, path)
 
+  -- Determine where to place cursor
   local cursor_fname = nil
   -- See if we're coming from a path below this dirbuf
   if from_path ~= nil and vim.startswith(from_path, path) then
@@ -108,7 +105,18 @@ function M.init_dirbuf(from_path)
     end
   end
 
-  set_dirbuf_opts(CURRENT_BUFFER)
+  -- Set dirbuf options
+  api.nvim_buf_set_option(CURRENT_BUFFER, "filetype", "dirbuf")
+  api.nvim_buf_set_option(CURRENT_BUFFER, "buftype", "acwrite")
+  api.nvim_buf_set_option(CURRENT_BUFFER, "bufhidden", "wipe")
+
+  -- Set "dirbuf_show_hidden" to default if it is unset
+  local ok, _ = pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_show_hidden")
+  if not ok then
+    api.nvim_buf_set_var(CURRENT_BUFFER, "dirbuf_show_hidden", config.get("show_hidden"))
+  end
+
+  -- Re-init dirbuf preserving altbuf
   if altbuf ~= -1 then
     vim.fn.setreg("#", altbuf)
   end
@@ -124,6 +132,15 @@ local function get_cursor_fname()
     hash_first = config.get("hash_first"),
   })
   return err, fname
+end
+
+function M.get_cursor_path()
+  local err, fname = get_cursor_fname()
+  if err ~= nil then
+    error(err)
+  end
+  local dir = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
+  return fs.join_paths(dir, fname)
 end
 
 -- If `path` is a file, this returns the absolute path to its parent. Otherwise
