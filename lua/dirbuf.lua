@@ -176,11 +176,15 @@ function M.open(path)
     keepalt = "keepalt"
   end
 
-  vim.cmd("silent " .. keepalt .. " edit " .. vim.fn.fnameescape(path))
+  vim.cmd(keepalt .. " edit " .. vim.fn.fnameescape(path))
   M.init_dirbuf(from_path)
 end
 
-function M.enter()
+function M.enter(cmd)
+  if cmd == nil then
+    cmd = "edit"
+  end
+
   if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
     api.nvim_err_writeln("Operation only supports 'filetype=dirbuf'")
     return
@@ -199,7 +203,7 @@ function M.enter()
   end
 
   local path = fs.join_paths(dir, fname)
-  vim.cmd("silent keepalt edit " .. vim.fn.fnameescape(path))
+  vim.cmd("keepalt " .. cmd .. " " .. vim.fn.fnameescape(path))
   -- NOTE: Currently Neovim swallows errors in BufEnter autocmds, so this hack
   -- gets around that: https://github.com/neovim/neovim/issues/13711
   -- This code is also arguably correct outside of that issue since it means

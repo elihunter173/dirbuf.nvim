@@ -93,6 +93,10 @@ dirbuf.setup({opts})                                            *dirbuf.setup()*
         }
 
 
+dirbuf.enter({cmd})                                             *dirbuf.enter()*
+    Performs {cmd} ("edit", "vsplit", "split", "tabedit") on the path
+    currently under the cursor.
+
 dirbuf.get_cursor_path()                              *dirbuf.get_cursor_path()*
     Returns the absolute path of the filesystem entry under the cursor in the
     current directory buffer. If there are any errors parsing the current
