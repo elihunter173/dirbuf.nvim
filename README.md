@@ -6,13 +6,15 @@ text. Inspired by [vim-dirvish] and [vidir].
 ## Features
 
 * *Intuitive:* Create, copy, delete, and rename files, directories, and more by
-  editing their lines in the directory buffer.
+  editing their lines in the directory buffer. Buffer names are automatically
+  updated to reflect these changes.
 * *Minimal:* Works out of the box with no configuration. Default mappings
   easily changed.
 * *Unobtrusive:* Preserves alternate buffers, letting you switch between
   files with `Ctrl-^` (`Ctrl-6`).
 * *Safe:* Does not modify the filesystem until you save the buffer. Let's you
   dry-run saving.
+* *Reliable:* Resolves inter-dependencies in batch renames, including cycles.
 * *Polite:* Plays nicely with tree-based file viewers like [nvim-tree.lua],
   [fern.vim], and [carbon.nvim].
 

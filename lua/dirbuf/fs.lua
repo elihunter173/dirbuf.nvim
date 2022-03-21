@@ -1,3 +1,4 @@
+local api = vim.api
 local uv = vim.loop
 
 local M = {}
@@ -19,17 +20,7 @@ local function hash(str)
   return string.format("%08x", h % HASH_MAX)
 end
 
--- This was borrowed from util.lua in packer.nvim
-if jit ~= nil then
-  M.is_windows = jit.os == "Windows"
-else
-  M.is_windows = package.config:sub(1, 1) == "\\"
-end
-if M.is_windows then
-  M.path_separator = "\\"
-else
-  M.path_separator = "/"
-end
+M.path_separator = package.config:sub(1, 1)
 
 function M.is_hidden(fname)
   return fname:sub(1, 1) == "."
@@ -208,6 +199,34 @@ function M.plan.move(src_fstate, dst_fstate)
   return { type = "move", src_fstate = src_fstate, dst_fstate = dst_fstate }
 end
 
+local function rename_loaded_buffers(old_path, new_path)
+  for _, buf in ipairs(api.nvim_list_bufs()) do
+    if not api.nvim_buf_is_loaded(buf) then
+      goto continue
+    end
+
+    -- api.nvim_buf_get_name() returns absolute path so no post-processing
+    local buf_name = api.nvim_buf_get_name(buf)
+    local exact_match = buf_name == old_path
+    local child_match = (
+        buf_name:sub(1, #old_path) == old_path and buf_name:sub(#old_path + 1, #old_path + 1) == M.path_separator
+      )
+    if exact_match or child_match then
+      api.nvim_buf_set_name(buf, new_path .. buf_name:sub(#old_path + 1))
+
+      -- We have to :write! normal files to avoid `E13: File exists (add ! to
+      -- override)` error when manually calling :write
+      if api.nvim_buf_get_option(buf, "buftype") == "" then
+        api.nvim_buf_call(buf, function()
+          vim.cmd("silent! write!")
+        end)
+      end
+    end
+
+    ::continue::
+  end
+end
+
 function M.actions.move(args)
   local src_fstate, dst_fstate = args.src_fstate, args.dst_fstate
   -- FIXME: This is a TOCTOU
@@ -218,6 +237,8 @@ function M.actions.move(args)
   if not ok then
     return string.format("Move failed for %s -> %s: %s", src_fstate.path, dst_fstate.path, err)
   end
+
+  rename_loaded_buffers(src_fstate.path, dst_fstate.path)
 end
 
 return M
