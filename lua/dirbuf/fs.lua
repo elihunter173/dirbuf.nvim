@@ -88,7 +88,7 @@ function FState.temp(ftype)
 end
 
 function FState:hash()
-  return hash(self.path)
+  return hash(self.fname)
 end
 
 M.plan = {}
