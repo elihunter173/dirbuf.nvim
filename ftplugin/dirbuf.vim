@@ -10,5 +10,5 @@ endif
 
 augroup dirbuf_local
   autocmd! * <buffer>
-  autocmd BufWriteCmd <buffer> lua require'dirbuf'.sync()
+  autocmd BufWriteCmd <buffer> execute v:lua.require('dirbuf.config').get('write_cmd')
 augroup END

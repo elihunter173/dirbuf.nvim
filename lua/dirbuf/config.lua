@@ -18,6 +18,7 @@ local conf = {
   hash_padding = 2,
   show_hidden = true,
   sort_order = sort_default,
+  write_cmd = "DirbufSync",
 }
 
 function M.update(opts)
@@ -63,6 +64,14 @@ function M.update(opts)
       return "`sort_order` must be function, received " .. type(val)
     end
     conf.sort_order = val
+  end
+
+  if opts.write_cmd ~= nil then
+    local val = opts.write_cmd
+    if type(val) ~= "string" then
+      return "`write_cmd` must be string, received " .. type(val)
+    end
+    conf.write_cmd = val
   end
 
   return nil

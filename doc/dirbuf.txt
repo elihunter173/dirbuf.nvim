@@ -94,6 +94,7 @@ dirbuf.setup({opts})                                            *dirbuf.setup()*
             hash_padding = 2,
             show_hidden = true,
             sort_order = "default",
+            write_cmd = "DirbufSync",
         }
 
 
@@ -158,6 +159,18 @@ OPTIONS                                                         *dirbuf-options*
        {path}   `string` containing the full path of the filesystem entry
                 using platform-specific directory separators (i.e. "\" on
                 Windows and "/" on Linux and MacOS) without a suffix
+
+|write_cmd| (default: `"DirbufSync"`)
+    What command Dirbuf should execute when the user issues a `:write`.
+
+    Examples: ~
+        "DirbufSync -confirm"
+                Requests confirmation from the user before syncing the changes
+                made to the directory buffer.
+
+        "" or "echoerr ':write disabled'"
+                Disables `:write` in directory buffers, forcing users to
+                explicitly invoke `:DirbufSync`.
 
 ==============================================================================
 CREDITS                                                         *dirbuf-credits*
