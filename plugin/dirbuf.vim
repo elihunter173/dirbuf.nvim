@@ -6,7 +6,7 @@ command! -nargs=? -complete=dir Dirbuf lua require'dirbuf'.open(<q-args>)
 command! -nargs=? -complete=customlist,s:DirbufSyncOptions DirbufSync lua require'dirbuf'.sync(<q-args>)
 
 function! s:DirbufSyncOptions(arg_lead, cmd_line, cursor_pos)
-  let options = ['-dry-run']
+  let options = ['-confirm', '-dry-run']
   return filter(options, 'v:val =~ "^'.a:arg_lead.'"')
 endfunction
 

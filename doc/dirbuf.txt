@@ -74,6 +74,10 @@ COMMANDS                                                       *dirbuf-commands*
     necessary.
 
     Flags: ~
+        -confirm    Before changing the filesystem, print out a list of all
+                    the actions `:DirbufSync` would perform, like `-dry-run`.
+                    Then ask the user to confirm the changes before making
+                    them.
         -dry-run    Rather than changing the filesystem, print out a list of
                     all the actions `:DirbufSync` would perform. These are
                     formatted as Unix-like commands (e.g. `mv 'foo' 'bar'`),

@@ -236,25 +236,51 @@ local function check_dirbuf(buf)
   return nil
 end
 
-local function fmt_action(action)
+-- print_plan() should only be called from dirbuf.sync()
+local function print_plan(plan)
   local function fmt_fstate(fstate)
     return vim.fn.shellescape(buffer.display_fstate(fstate))
   end
 
-  if action.type == "create" then
-    if action.fstate.ftype == "directory" then
-      return "mkdir " .. fmt_fstate(action.fstate)
+  for _, action in ipairs(plan) do
+    if action.type == "create" then
+      if action.fstate.ftype == "directory" then
+        print("mkdir " .. fmt_fstate(action.fstate))
+      else
+        print("touch " .. fmt_fstate(action.fstate))
+      end
+    elseif action.type == "copy" then
+      print("cp " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate))
+    elseif action.type == "delete" then
+      print("rm " .. fmt_fstate(action.fstate))
+    elseif action.type == "move" then
+      print("mv " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate))
     else
-      return "touch " .. fmt_fstate(action.fstate)
+      error("Unrecognized action: " .. vim.inspect(action))
     end
-  elseif action.type == "copy" then
-    return "cp " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate)
-  elseif action.type == "delete" then
-    return "rm " .. fmt_fstate(action.fstate)
-  elseif action.type == "move" then
-    return "mv " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate)
-  else
-    error("Unrecognized action: " .. vim.inspect(action))
+  end
+end
+
+-- do_plan() should only be called from dirbuf.sync()
+local function do_plan(plan)
+  local err = planner.execute_plan(plan)
+  if err ~= nil then
+    api.nvim_err_writeln("Error making changes: " .. err)
+    api.nvim_err_writeln("WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
+    return
+  end
+
+  -- Leave cursor on the same file
+  local fname
+  err, fname = get_cursor_fname()
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
+  end
+  err = fill_dirbuf(CURRENT_BUFFER, fname)
+  if err ~= nil then
+    api.nvim_err_writeln(err)
+    return
   end
 end
 
@@ -268,7 +294,7 @@ function M.sync(opt)
     return
   end
 
-  if opt ~= "" and opt ~= "-dry-run" then
+  if opt ~= "" and opt ~= "-confirm" and opt ~= "-dry-run" then
     api.nvim_err_writeln(":DirbufSync unrecognized option: " .. opt)
   end
 
@@ -293,30 +319,17 @@ function M.sync(opt)
 
   local plan = planner.determine_plan(changes)
 
-  if opt == "-dry-run" then
-    for _, action in ipairs(plan) do
-      print(fmt_action(action))
+  if opt == "-confirm" then
+    print_plan(plan)
+    -- We pcall to make Ctrl-C work
+    local ok, response = pcall(vim.fn.confirm, "Sync changes?", "&Yes\n&No", 2)
+    if ok and response == 1 then
+      do_plan(plan)
     end
+  elseif opt == "-dry-run" then
+    print_plan(plan)
   else
-    err = planner.execute_plan(plan)
-    if err ~= nil then
-      api.nvim_err_writeln("Error making changes: " .. err)
-      api.nvim_err_writeln("WARNING: Dirbuf in inconsistent state. Run :edit! to refresh")
-      return
-    end
-
-    -- Leave cursor on the same file
-    local fname
-    err, fname = get_cursor_fname()
-    if err ~= nil then
-      api.nvim_err_writeln(err)
-      return
-    end
-    err = fill_dirbuf(CURRENT_BUFFER, fname)
-    if err ~= nil then
-      api.nvim_err_writeln(err)
-      return
-    end
+    do_plan(plan)
   end
 end
 
