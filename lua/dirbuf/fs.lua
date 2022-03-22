@@ -3,23 +3,6 @@ local uv = vim.loop
 
 local M = {}
 
-local FNV_PRIME = 16777619
-local FNV_OFFSET_BASIS = 2166136261
-
--- We use 4 byte hashes
-M.HASH_LEN = 8
-local HASH_MAX = 256 * 256 * 256 * 256
-
--- 32 bit FNV-1a hash that is cut to the least significant 4 bytes.
-local function hash(str)
-  local h = FNV_OFFSET_BASIS
-  for c in str:gmatch(".") do
-    h = bit.bxor(h, c:byte())
-    h = h * FNV_PRIME
-  end
-  return string.format("%08x", h % HASH_MAX)
-end
-
 M.path_separator = package.config:sub(1, 1)
 
 function M.is_hidden(fname)
@@ -76,10 +59,6 @@ function FState.temp(ftype)
     path = temppath,
     ftype = ftype,
   }
-end
-
-function FState:hash()
-  return hash(self.fname)
 end
 
 M.plan = {}

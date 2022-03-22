@@ -79,6 +79,8 @@ function M.build_changes(dirbuf, lines, parse_opts)
   return nil, { change_map = change_map, new_files = new_files }
 end
 
+-- TODO: Currently we don't always find the optimal unsticking point and we
+-- don't implement the clobbering optimization
 local function resolve_change(plan, change_map, change)
   if change.progress == "handled" then
     return

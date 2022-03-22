@@ -6,6 +6,8 @@ local FState = fs.FState
 
 local M = {}
 
+M.HASH_LEN = 8
+
 --[[
 local record Dirbuf
   dir: string
@@ -120,7 +122,7 @@ local function parse_hash(chars)
   end
 
   local string_builder = {}
-  for _ = 1, fs.HASH_LEN do
+  for _ = 1, M.HASH_LEN do
     c = chars()
     if c == nil then
       return "Unexpected end of line in hash"
@@ -130,7 +132,7 @@ local function parse_hash(chars)
       table.insert(string_builder, c)
     end
   end
-  return nil, table.concat(string_builder)
+  return nil, tonumber(table.concat(string_builder), 16)
 end
 
 -- The language of valid dirbuf lines is regular, so normally I would use a
@@ -195,29 +197,18 @@ function M.display_fstate(fstate)
 end
 
 function M.write_dirbuf(dirbuf, opts, track_fname)
-  -- TODO: This would be cleaner if we stored dirbufs with an index instead of
-  -- a key that was sorted in sort_order to begin with. This would also prevent
-  -- the issue where hashes can collide
-  local ir = {}
-  for hash, fstate in pairs(dirbuf.fstates) do
-    table.insert(ir, { fstate, hash })
-  end
-  local comp = config.get("sort_order")
-  table.sort(ir, function(l, r)
-    return comp(l[1], r[1])
-  end)
-
   local fname_line = nil
-  for lnum, fstate_hash in ipairs(ir) do
-    if fstate_hash[1].fname == track_fname then
+  for lnum, fstate in ipairs(dirbuf.fstates) do
+    if fstate.fname == track_fname then
       fname_line = lnum
+      break
     end
   end
 
   local buf_lines = {}
   local max_len = 0
-  for _, fstate_hash in ipairs(ir) do
-    local fstate, hash = unpack(fstate_hash)
+  for idx, fstate in ipairs(dirbuf.fstates) do
+    local hash = string.format("%08x", idx)
     local display = M.display_fstate(fstate)
     if #display > max_len then
       max_len = #display
@@ -245,20 +236,11 @@ function M.create_dirbuf(dir, show_hidden)
     if fname == nil then
       break
     end
-    if not show_hidden and fs.is_hidden(fname) then
-      goto continue
+    if show_hidden or not fs.is_hidden(fname) then
+      table.insert(dirbuf.fstates, FState.new(fname, dir, ftype))
     end
-
-    local fstate = FState.new(fname, dir, ftype)
-    local hash = FState.hash(fstate)
-    if dirbuf.fstates[hash] ~= nil then
-      -- This should never happen
-      error(string.format("Colliding hashes '%s' with '%s' and '%s'", hash, dirbuf.fstates[hash].path, fstate.path))
-    end
-    dirbuf.fstates[hash] = fstate
-
-    ::continue::
   end
+  table.sort(dirbuf.fstates, config.get("sort_order"))
 
   return nil, dirbuf
 end

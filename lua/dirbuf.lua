@@ -45,19 +45,16 @@ local function fill_dirbuf(buf, on_fname)
   api.nvim_buf_set_var(buf, "dirbuf", dirbuf)
 
   if hash_first then
-    api.nvim_buf_set_option(buf, "tabstop", #"#" + fs.HASH_LEN + config.get("hash_padding"))
+    api.nvim_buf_set_option(buf, "tabstop", #"#" + buffer.HASH_LEN + config.get("hash_padding"))
   else
     api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
   end
 
-  local cursor_line, cursor_col = 1, 0
+  local cursor_col = 0
   if hash_first then
-    cursor_col = #"#" + fs.HASH_LEN + #"\t"
+    cursor_col = #"#" + buffer.HASH_LEN + #"\t"
   end
-  if fname_line ~= nil then
-    cursor_line = fname_line
-  end
-  api.nvim_win_set_cursor(CURRENT_WINDOW, { cursor_line, cursor_col })
+  api.nvim_win_set_cursor(CURRENT_WINDOW, { fname_line or 1, cursor_col })
 
   api.nvim_buf_set_option(buf, "modified", false)
 
