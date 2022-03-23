@@ -12,78 +12,100 @@ local function sort_directories_first(left, right)
   end
 end
 
--- Default config settings
-local conf = {
-  hash_first = true,
-  hash_padding = 2,
-  show_hidden = true,
-  sort_order = sort_default,
-  write_cmd = "DirbufSync",
+local CONFIG_SPEC = {
+  hash_first = {
+    default = true,
+    check = function(val)
+      if type(val) ~= "boolean" then
+        return "must be boolean, received " .. type(val)
+      end
+    end,
+  },
+  hash_padding = {
+    default = 2,
+    check = function(val)
+      if type(val) ~= "number" or math.floor(val) ~= val or val < 1 then
+        return "must be integer larger than 1"
+      end
+    end,
+  },
+  show_hidden = {
+    default = true,
+    check = function(val)
+      if type(val) ~= "boolean" then
+        return "must be boolean, received " .. type(val)
+      end
+    end,
+  },
+  sort_order = {
+    default = sort_default,
+    check = function(val)
+      if val == "default" then
+        return nil, sort_default
+      elseif val == "directories_first" then
+        return nil, sort_directories_first
+      elseif type(val) == "function" then
+        return nil, val
+      else
+        return 'must be one of "default", "directories_first", or function'
+      end
+    end,
+  },
+  write_cmd = {
+    default = "DirbufSync",
+    check = function(val)
+      if type(val) ~= "string" then
+        return "must be string, received " .. type(val)
+      end
+    end,
+  },
 }
 
+local user_config = {}
+
 function M.update(opts)
-  if opts.hash_first ~= nil then
-    local val = opts.hash_first
-    if type(val) ~= "boolean" then
-      return "`hash_first` must be boolean, received " .. type(val)
-    end
-    conf.hash_first = val
-  end
+  local errors = {}
 
-  if opts.hash_padding ~= nil then
-    local val = opts.hash_padding
-    if type(val) ~= "number" or math.floor(val) ~= val or val < 1 then
-      return "`hash_padding` must be an integer larger than 1"
-    end
-    conf.hash_padding = val
-  end
-
-  if opts.show_hidden ~= nil then
-    local val = opts.show_hidden
-    if type(val) ~= "boolean" then
-      return "`show_hidden` must be boolean, received " .. type(val)
-    end
-    conf.show_hidden = val
-  end
-
-  if opts.sort_order ~= nil then
-    local val = opts.sort_order
-    -- Preprocess string value
-    if type(val) == "string" then
-      if val == "default" then
-        val = sort_default
-      elseif val == "directories_first" then
-        val = sort_directories_first
+  for option_name, spec in pairs(CONFIG_SPEC) do
+    local val = opts[option_name]
+    if val == nil then
+      -- Don't check unset options
+      user_config[option_name] = nil
+    else
+      local err, converted = spec.check(val)
+      if err ~= nil then
+        table.insert(errors, string.format("`%s` %s", option_name, err))
+      elseif converted == nil then
+        user_config[option_name] = val
       else
-        return "Unrecognized `sort_order` "
-          .. vim.inspect(val)
-          .. '. Expected "default", "directories_first", or function'
+        user_config[option_name] = converted
       end
     end
-    if type(val) ~= "function" then
-      return "`sort_order` must be function, received " .. type(val)
-    end
-    conf.sort_order = val
   end
 
-  if opts.write_cmd ~= nil then
-    local val = opts.write_cmd
-    if type(val) ~= "string" then
-      return "`write_cmd` must be string, received " .. type(val)
+  local unknown_options = {}
+  for key, _ in pairs(opts) do
+    if CONFIG_SPEC[key] == nil then
+      table.insert(unknown_options, "`" .. key .. "`")
     end
-    conf.write_cmd = val
+  end
+  if #unknown_options > 0 then
+    table.insert(errors, table.concat(unknown_options, ", ") .. " not recognized")
   end
 
-  return nil
+  return errors
 end
 
 function M.get(opt)
-  -- This sanity check ensures we don't typo a true/false option and get a
-  -- falsey response of nil
-  if conf[opt] == nil then
+  -- Ensure we don't typo options
+  if CONFIG_SPEC[opt] == nil then
     error("Unrecognized option: " .. opt)
   end
-  return conf[opt]
+  if user_config[opt] == nil then
+    return CONFIG_SPEC[opt].default
+  else
+    return user_config[opt]
+  end
 end
 
 return M

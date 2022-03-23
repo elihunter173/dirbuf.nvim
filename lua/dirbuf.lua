@@ -12,9 +12,14 @@ local CURRENT_BUFFER = 0
 local CURRENT_WINDOW = 0
 
 function M.setup(opts)
-  local err = config.update(opts)
-  if err ~= nil then
-    api.nvim_err_writeln("dirbuf.setup: " .. err)
+  local errors = config.update(opts)
+  if #errors == 1 then
+    api.nvim_err_writeln("dirbuf.setup: " .. errors[1])
+  elseif #errors > 1 then
+    api.nvim_err_writeln("dirbuf.setup:")
+    for _, err in ipairs(errors) do
+      api.nvim_err_writeln("    " .. err)
+    end
   end
 end
 
