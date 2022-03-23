@@ -173,6 +173,28 @@ OPTIONS                                                         *dirbuf-options*
                 explicitly invoke `:DirbufSync`.
 
 ==============================================================================
+FAQ                                                                 *dirbuf-faq*
+
+Can I conceal hashes in directory buffers? ~
+Dirbuf does not natively support `conceal` on hashes because the author
+believes seeing the hashes is important to making Dirbuf's actions
+predictable and wants to dissuade new users from hiding the hashes.
+
+However, if you really want to conceal the hashes, you can create a
+`after/syntax/dirbuf.vim` file with the following code which modifies the
+normal DirbufHash definition to support `conceal`. >
+    syntax clear DirbufHash
+    syntax match DirbufHash /^#\x\{8}\t/ms=s-1 conceal cchar=#
+    " or for `hash_first = false`
+    " syntax match DirbufHash /\t#\x\{8}\s*$/ms=s+1 conceal cchar=#
+    setlocal conceallevel=2
+    setlocal concealcursor=n
+
+If you feel strongly that Dirbuf should natively support `conceal` on hashes,
++1 this issue and I will consider it: >
+    https://github.com/elihunter173/dirbuf.nvim/issues/23
+
+==============================================================================
 CREDITS                                                         *dirbuf-credits*
 
 Dirbuf was initially conceived of as a Lua rewrite of the file manager plugin
