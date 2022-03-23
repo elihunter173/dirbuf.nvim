@@ -187,9 +187,7 @@ local function rename_loaded_buffers(old_path, new_path)
     -- api.nvim_buf_get_name() returns absolute path so no post-processing
     local buf_name = api.nvim_buf_get_name(buf)
     local exact_match = buf_name == old_path
-    local child_match = (
-        buf_name:sub(1, #old_path) == old_path and buf_name:sub(#old_path + 1, #old_path + 1) == M.path_separator
-      )
+    local child_match = vim.startswith(buf_name, old_path .. M.path_separator)
     if exact_match or child_match then
       api.nvim_buf_set_name(buf, new_path .. buf_name:sub(#old_path + 1))
 

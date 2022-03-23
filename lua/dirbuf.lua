@@ -18,20 +18,21 @@ function M.setup(opts)
   end
 end
 
--- `fill_dirbuf` fills buffer `buf` with the contents of its corresponding
--- directory. `buf` must have the name of a valid directory.
+-- `fill_dirbuf` fills the current buffer with the contents of its
+-- corresponding directory. Note that the current buffer must have the name of
+-- a valid directory.
 --
 -- If `on_fname` is set, then the cursor will be put on the line corresponding
 -- to `on_fname`.
 --
 -- Returns: err
-local function fill_dirbuf(buf, on_fname)
-  local dir, err = uv.fs_realpath(api.nvim_buf_get_name(buf))
+local function fill_dirbuf(on_fname)
+  local dir, err = uv.fs_realpath(api.nvim_buf_get_name(CURRENT_BUFFER))
   if dir == nil then
     return err
   end
 
-  local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
+  local show_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_show_hidden")
 
   local dirbuf
   err, dirbuf = buffer.create_dirbuf(dir, show_hidden)
@@ -41,13 +42,19 @@ local function fill_dirbuf(buf, on_fname)
 
   local hash_first = config.get("hash_first")
   local buf_lines, max_len, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = hash_first }, on_fname)
-  api.nvim_buf_set_lines(buf, 0, -1, true, buf_lines)
-  api.nvim_buf_set_var(buf, "dirbuf", dirbuf)
+  -- Before we set lines, we set undolevels to -1 so we delete the history when
+  -- we set the lines. This prevents people going back to now-invalid hashes
+  -- and potentially messing up their directory on accident
+  local undolevels = api.nvim_buf_get_option(CURRENT_BUFFER, "undolevels")
+  api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", -1)
+  api.nvim_buf_set_lines(CURRENT_BUFFER, 0, -1, true, buf_lines)
+  api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", undolevels)
+  api.nvim_buf_set_var(CURRENT_BUFFER, "dirbuf", dirbuf)
 
   if hash_first then
-    api.nvim_buf_set_option(buf, "tabstop", #"#" + buffer.HASH_LEN + config.get("hash_padding"))
+    api.nvim_buf_set_option(CURRENT_BUFFER, "tabstop", #"#" + buffer.HASH_LEN + config.get("hash_padding"))
   else
-    api.nvim_buf_set_option(buf, "tabstop", max_len + config.get("hash_padding"))
+    api.nvim_buf_set_option(CURRENT_BUFFER, "tabstop", max_len + config.get("hash_padding"))
   end
 
   local cursor_col = 0
@@ -56,7 +63,7 @@ local function fill_dirbuf(buf, on_fname)
   end
   api.nvim_win_set_cursor(CURRENT_WINDOW, { fname_line or 1, cursor_col })
 
-  api.nvim_buf_set_option(buf, "modified", false)
+  api.nvim_buf_set_option(CURRENT_BUFFER, "modified", false)
 
   return nil
 end
@@ -72,7 +79,7 @@ local function normalize_path(path)
   path = vim.fn.simplify(path)
   -- On Windows, simplify keeps the path_separator on directories
   if path:sub(-1, -1) == fs.path_separator then
-    return vim.fn.fnamemodify(path, ":h")
+    path = vim.fn.fnamemodify(path, ":h")
   end
   return path
 end
@@ -117,7 +124,7 @@ function M.init_dirbuf(from_path)
   if altbuf ~= -1 then
     vim.fn.setreg("#", altbuf)
   end
-  local err = fill_dirbuf(CURRENT_BUFFER, cursor_fname)
+  local err = fill_dirbuf(cursor_fname)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -274,7 +281,7 @@ local function do_plan(plan)
     api.nvim_err_writeln(err)
     return
   end
-  err = fill_dirbuf(CURRENT_BUFFER, fname)
+  err = fill_dirbuf(fname)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -343,7 +350,7 @@ function M.toggle_hide()
     api.nvim_err_writeln(err)
     return
   end
-  err = fill_dirbuf(CURRENT_BUFFER, fname)
+  err = fill_dirbuf(fname)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
