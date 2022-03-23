@@ -45,12 +45,17 @@ local function fill_dirbuf(on_fname)
     return err
   end
 
-  local hash_first = config.get("hash_first")
-  local buf_lines, max_len, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = hash_first }, on_fname)
   -- Before we set lines, we set undolevels to -1 so we delete the history when
   -- we set the lines. This prevents people going back to now-invalid hashes
   -- and potentially messing up their directory on accident
-  local undolevels = api.nvim_buf_get_option(CURRENT_BUFFER, "undolevels")
+  local hash_first = config.get("hash_first")
+  local buf_lines, max_len, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = hash_first }, on_fname)
+  -- HACK: We have to use VimL buffer-local options because
+  -- `api.nvim_buf_get_option` returns unitialized garbage on unset variables
+  -- (https://github.com/neovim/neovim/pull/15996)
+  -- TODO: Use `api.nvim_buf_get_option_value` next time we bump the minimum
+  -- Neovim version
+  local undolevels = api.nvim_eval("&l:undolevels")
   api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", -1)
   api.nvim_buf_set_lines(CURRENT_BUFFER, 0, -1, true, buf_lines)
   api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", undolevels)
