@@ -1,3 +1,5 @@
+local api = vim.api
+
 local M = {}
 
 local function sort_default(left, right)
@@ -19,6 +21,10 @@ local CONFIG_SPEC = {
       if type(val) ~= "boolean" then
         return "must be boolean, received " .. type(val)
       end
+      local issue = "https://github.com/elihunter173/dirbuf.nvim/issues/25"
+      api.nvim_echo({
+        { "dirbuf.setup: `hash_first` is deprecated. See " .. issue, "WarningMsg" },
+      }, true, {})
     end,
   },
   hash_padding = {
