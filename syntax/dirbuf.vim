@@ -52,21 +52,34 @@ else
 endif
 
 " Highlight each object according to its color in by ls --color=always
-function! s:SetColor(group_name, color_num)
-  if !exists('g:terminal_color_0')
-    execute 'highlight '.a:group_name.' ctermfg='.a:color_num
+" This was taken and modified from nvim-tree.lua's colors.lua
+function! s:SetColor(group_name, color_num, fallback_group, fallback_color)
+  if exists('g:terminal_color_'.a:color_num)
+    let l:color = get(g:, 'terminal_color_'.a:color_num)
+    execute 'highlight '.a:group_name.' ctermfg='.a:color_num.' gui=bold guifg='.l:color
+    return
+  endif
+  let l:id = v:lua.vim.api.nvim_get_hl_id_by_name(a:fallback_group)
+  let l:foreground = synIDattr(synIDtrans(id), "fg")
+  if l:foreground !=# ''
+    execute 'highlight '.a:group_name.' ctermfg='.a:color_num.' gui=bold guifg='.l:foreground
   else
-    let color = get(g:, 'terminal_color_'.a:color_num)
-    execute 'highlight '.a:group_name.' ctermfg='.a:color_num.' gui=bold guifg='.color
+    execute 'highlight '.a:group_name.' ctermfg='.a:color_num.' gui=bold guifg='.a:fallback_color
   endif
 endfunction
+
 highlight link DifbufFile Normal
-call s:SetColor('DirbufDirectory', 4)
-call s:SetColor('DirbufLink', 6)
-call s:SetColor('DirbufFifo', 2)
-call s:SetColor('DirbufSocket', 5)
-call s:SetColor('DirbufChar', 3)
-call s:SetColor('DirbufBlock', 3)
+if exists('g:terminal_color_4')
+  execute 'highlight DirbufDirectory ctermfg=4 gui=bold guifg='.g:terminal_color_4
+else
+  highlight link DirbufDirectory Directory
+endif
+call s:SetColor('DirbufLink', 6, 'Conditional', 'Cyan')
+call s:SetColor('DirbufFifo', 2, 'Character', 'Green')
+call s:SetColor('DirbufSocket', 5, 'Define', 'Purple')
+call s:SetColor('DirbufChar', 3, 'PreProc', 'Yellow')
+call s:SetColor('DirbufBlock', 3, 'PreProc', 'Yellow')
+
 highlight link DirbufHash Special
 
 highlight link DirbufMalformedLine Error
