@@ -132,6 +132,9 @@ function M.init_dirbuf(from_path)
   api.nvim_buf_set_option(CURRENT_BUFFER, "filetype", "dirbuf")
   api.nvim_buf_set_option(CURRENT_BUFFER, "buftype", "acwrite")
   api.nvim_buf_set_option(CURRENT_BUFFER, "bufhidden", "wipe")
+  -- Normally unnecessary but sometimes other plugins make things unmodifiable,
+  -- so we have to do this to prevent running into errors in fill_dirbuf
+  api.nvim_buf_set_option(CURRENT_BUFFER, "modifiable", true)
 
   -- Set "dirbuf_show_hidden" to default if it is unset
   local ok, _ = pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_show_hidden")
