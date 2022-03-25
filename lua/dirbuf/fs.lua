@@ -64,13 +64,91 @@ end
 M.plan = {}
 M.actions = {}
 
+local DEFAULT_FILE_MODE = tonumber("644", 8)
+-- Directories have to be executable for you to chdir into them
+local DEFAULT_DIR_MODE = tonumber("755", 8)
+
+local function cp(src_path, dst_path, ftype)
+  if ftype == "directory" then
+    local ok, err, _ = uv.fs_mkdir(dst_path, DEFAULT_DIR_MODE)
+    if not ok then
+      return err
+    end
+
+    local handle = uv.fs_scandir(src_path)
+    while true do
+      local next_fname, next_ftype = uv.fs_scandir_next(handle)
+      if next_fname == nil then
+        break
+      end
+      err = cp(M.join_paths(src_path, next_fname), M.join_paths(dst_path, next_fname), next_ftype)
+      if err ~= nil then
+        return err
+      end
+    end
+  else
+    local ok, err, _ = uv.fs_copyfile(src_path, dst_path)
+    if not ok then
+      return err
+    end
+    return nil
+  end
+end
+
+local function rm(path, ftype)
+  if ftype == "directory" then
+    local handle = uv.fs_scandir(path)
+    while true do
+      local next_fname, next_ftype = uv.fs_scandir_next(handle)
+      if next_fname == nil then
+        break
+      end
+      local err = rm(M.join_paths(path, next_fname), next_ftype)
+      if err ~= nil then
+        return err
+      end
+    end
+    local ok, err, _ = uv.fs_rmdir(path)
+    if not ok then
+      return err
+    end
+    return nil
+  else
+    local ok, err, _ = uv.fs_unlink(path)
+    if not ok then
+      return err
+    end
+    return nil
+  end
+end
+
+local function mv(src_path, dst_path, ftype)
+  -- FIXME: This is a TOCTOU
+  if uv.fs_access(dst_path, "W") then
+    return string.format("'%s' already exists", dst_path)
+  end
+  local ok, err, err_type = uv.fs_rename(src_path, dst_path)
+
+  if not ok and err_type == "EXDEV" then
+    err = cp(src_path, dst_path, ftype)
+    if err ~= nil then
+      return err
+    end
+    err = rm(src_path, ftype)
+    if err ~= nil then
+      return err
+    end
+  elseif not ok then
+    return err
+  end
+
+  return nil
+end
+
 function M.plan.create(fstate)
   return { type = "create", fstate = fstate }
 end
 
-local DEFAULT_FILE_MODE = tonumber("644", 8)
--- Directories have to be executable for you to chdir into them
-local DEFAULT_DIR_MODE = tonumber("755", 8)
 function M.actions.create(args)
   local fstate = args.fstate
 
@@ -101,33 +179,6 @@ function M.actions.create(args)
   return nil
 end
 
-local function cp(src_path, dst_path, ftype)
-  if ftype == "directory" then
-    local ok, err, _ = uv.fs_mkdir(dst_path, DEFAULT_DIR_MODE)
-    if not ok then
-      return err
-    end
-
-    local handle = uv.fs_scandir(src_path)
-    while true do
-      local next_fname, next_ftype = uv.fs_scandir_next(handle)
-      if next_fname == nil then
-        break
-      end
-      err = cp(M.join_paths(src_path, next_fname), M.join_paths(dst_path, next_fname), next_ftype)
-      if err ~= nil then
-        return err
-      end
-    end
-  else
-    local ok, err, _ = uv.fs_copyfile(src_path, dst_path)
-    if not ok then
-      return err
-    end
-    return nil
-  end
-end
-
 function M.plan.copy(src_fstate, dst_fstate)
   return { type = "copy", src_fstate = src_fstate, dst_fstate = dst_fstate }
 end
@@ -136,33 +187,6 @@ function M.actions.copy(args)
   local src_fstate, dst_fstate = args.src_fstate, args.dst_fstate
   -- We have ensured that the fstates are the same in plan.copy
   return cp(src_fstate.path, dst_fstate.path, src_fstate.ftype)
-end
-
-local function rm(path, ftype)
-  if ftype == "directory" then
-    local handle = uv.fs_scandir(path)
-    while true do
-      local next_fname, next_ftype = uv.fs_scandir_next(handle)
-      if next_fname == nil then
-        break
-      end
-      local err = rm(M.join_paths(path, next_fname), next_ftype)
-      if err ~= nil then
-        return err
-      end
-    end
-    local ok, err, _ = uv.fs_rmdir(path)
-    if not ok then
-      return err
-    end
-    return nil
-  else
-    local ok, err, _ = uv.fs_unlink(path)
-    if not ok then
-      return err
-    end
-    return nil
-  end
 end
 
 function M.plan.delete(fstate)
@@ -206,12 +230,8 @@ end
 
 function M.actions.move(args)
   local src_fstate, dst_fstate = args.src_fstate, args.dst_fstate
-  -- FIXME: This is a TOCTOU
-  if uv.fs_access(dst_fstate.path, "W") then
-    return string.format("File at '%s' already exists", dst_fstate.path)
-  end
-  local ok, err, _ = uv.fs_rename(src_fstate.path, dst_fstate.path)
-  if not ok then
+  local err = mv(src_fstate.path, dst_fstate.path, src_fstate.ftype)
+  if err ~= nil then
     return string.format("Move failed for %s -> %s: %s", src_fstate.path, dst_fstate.path, err)
   end
 
