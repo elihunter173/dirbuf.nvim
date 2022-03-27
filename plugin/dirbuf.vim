@@ -3,6 +3,7 @@ if exists("g:loaded_dirbuf")
 endif
 
 command! -nargs=? -complete=dir Dirbuf lua require'dirbuf'.open(<q-args>)
+command! DirbufQuit lua require'dirbuf'.quit()
 command! -nargs=? -complete=customlist,s:DirbufSyncOptions DirbufSync lua require'dirbuf'.sync(<q-args>)
 
 function! s:DirbufSyncOptions(arg_lead, cmd_line, cursor_pos)

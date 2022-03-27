@@ -227,6 +227,20 @@ function M.enter(cmd)
   end
 end
 
+function M.quit()
+  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+    api.nvim_err_writeln(":DirbufQuit only supports 'filetype=dirbuf'")
+    return
+  end
+
+  local altbuf = vim.fn.bufnr("#")
+  if altbuf == -1 or altbuf == api.nvim_get_current_buf() then
+    vim.cmd("bdelete")
+  else
+    api.nvim_set_current_buf(altbuf)
+  end
+end
+
 -- Ensure that the directory has not changed since our last snapshot
 local function check_dirbuf(buf)
   local saved_dirbuf = api.nvim_buf_get_var(buf, "dirbuf")

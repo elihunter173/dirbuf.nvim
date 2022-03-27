@@ -65,8 +65,11 @@ COMMANDS                                                       *dirbuf-commands*
 
 :Dirbuf {path}
     Opens the directory at {path}, or its parent if {path} is a file.
-    To open the directory of the current file: >
+    To open the parent directory of the current file: >
         :Dirbuf %
+
+:DirbufQuit                                                 *dirbuf-:DirbufQuit*
+    Quits and returns to the original file.
 
 :DirbufSync [{flag}]                                        *dirbuf-:DirbufSync*
     Saves and refreshes the current directory buffer, syncing its state with
