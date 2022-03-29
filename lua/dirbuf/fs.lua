@@ -86,6 +86,20 @@ local function cp(src_path, dst_path, ftype)
         return err
       end
     end
+
+    return nil
+  elseif ftype == "link" then
+    local src_points_to, err, _ = uv.fs_readlink(src_path)
+    if src_points_to == nil then
+      return err
+    end
+    local ok
+    ok, err, _ = uv.fs_symlink(src_points_to, dst_path)
+    if not ok then
+      return err
+    end
+
+    return nil
   else
     local ok, err, _ = uv.fs_copyfile(src_path, dst_path)
     if not ok then
