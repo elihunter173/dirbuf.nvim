@@ -159,6 +159,67 @@ local function mv(src_path, dst_path, ftype)
   return nil
 end
 
+local function is_child_of(maybe_child, parent)
+  local exact_match = maybe_child == parent
+  local child_match = vim.startswith(maybe_child, parent .. M.path_separator)
+  return exact_match or child_match
+end
+
+-- `rename_loaded_buffers` finds all renamed buffers under `old_path` and
+-- renames them to be under `new_path`.
+local function rename_loaded_buffers(old_path, new_path)
+  for _, buf in ipairs(api.nvim_list_bufs()) do
+    if not api.nvim_buf_is_loaded(buf) then
+      goto continue
+    end
+
+    -- api.nvim_buf_get_name() returns absolute path so no post-processing
+    local buf_name = api.nvim_buf_get_name(buf)
+    if is_child_of(buf_name, old_path) then
+      api.nvim_buf_set_name(buf, new_path .. buf_name:sub(#old_path + 1))
+
+      -- We have to :write! normal files to avoid `E13: File exists (add ! to
+      -- override)` error when manually calling :write
+      if api.nvim_buf_get_option(buf, "buftype") == "" then
+        api.nvim_buf_call(buf, function()
+          vim.cmd("silent! write!")
+        end)
+      end
+    end
+
+    ::continue::
+  end
+end
+
+-- `delete_loaded_buffers` finds all deleted buffers under `path` and replaces
+-- them with their alternate buffer, or a [No Name] buffer if its alternate
+-- buffer doesn't exist.
+local function delete_loaded_buffers(path)
+  for _, buf in ipairs(api.nvim_list_bufs()) do
+    if not api.nvim_buf_is_loaded(buf) then
+      goto continue
+    end
+
+    -- api.nvim_buf_get_name() returns absolute path so no post-processing
+    local buf_name = api.nvim_buf_get_name(buf)
+    if is_child_of(buf_name, path) then
+      for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+        api.nvim_win_call(win, function()
+          local altbuf = vim.fn.bufnr("#")
+          if api.nvim_buf_is_valid(altbuf) then
+            api.nvim_win_set_buf(win, altbuf)
+          else
+            vim.cmd("enew!")
+          end
+        end)
+      end
+      api.nvim_buf_delete(buf, { force = true })
+    end
+
+    ::continue::
+  end
+end
+
 function M.plan.create(fs_entry)
   return { type = "create", fs_entry = fs_entry }
 end
@@ -209,37 +270,17 @@ end
 
 function M.actions.delete(args)
   local fs_entry = args.fs_entry
-  return rm(fs_entry.path, fs_entry.ftype)
+  local err = rm(fs_entry.path, fs_entry.ftype)
+  if err ~= nil then
+    return string.format("Delete %s: %s", fs_entry.path, err)
+  end
+
+  delete_loaded_buffers(fs_entry.path)
+  return nil
 end
 
 function M.plan.move(src_fs_entry, dst_fs_entry)
   return { type = "move", src_fs_entry = src_fs_entry, dst_fs_entry = dst_fs_entry }
-end
-
-local function rename_loaded_buffers(old_path, new_path)
-  for _, buf in ipairs(api.nvim_list_bufs()) do
-    if not api.nvim_buf_is_loaded(buf) then
-      goto continue
-    end
-
-    -- api.nvim_buf_get_name() returns absolute path so no post-processing
-    local buf_name = api.nvim_buf_get_name(buf)
-    local exact_match = buf_name == old_path
-    local child_match = vim.startswith(buf_name, old_path .. M.path_separator)
-    if exact_match or child_match then
-      api.nvim_buf_set_name(buf, new_path .. buf_name:sub(#old_path + 1))
-
-      -- We have to :write! normal files to avoid `E13: File exists (add ! to
-      -- override)` error when manually calling :write
-      if api.nvim_buf_get_option(buf, "buftype") == "" then
-        api.nvim_buf_call(buf, function()
-          vim.cmd("silent! write!")
-        end)
-      end
-    end
-
-    ::continue::
-  end
 end
 
 function M.actions.move(args)
@@ -251,6 +292,7 @@ function M.actions.move(args)
   end
 
   rename_loaded_buffers(src_fs_entry.path, dst_fs_entry.path)
+  return nil
 end
 
 return M
