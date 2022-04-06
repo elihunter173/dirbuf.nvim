@@ -222,7 +222,7 @@ function M.enter(cmd)
   -- NOTE: Currently Neovim swallows errors in BufEnter autocmds, so this hack
   -- gets around that: https://github.com/neovim/neovim/issues/13711
   -- This code is also arguably correct outside of that issue since it means
-  -- dirbuf.enter() on a directory will always open another dirbuf
+  -- dirbuf.enter() on a directory will alwaies open another dirbuf
   if fs.is_directory(path) then
     M.init_dirbuf()
   end
@@ -267,23 +267,23 @@ end
 
 -- print_plan() should only be called from dirbuf.sync()
 local function print_plan(plan)
-  local function fmt_fstate(fstate)
-    return vim.fn.shellescape(buffer.display_fstate(fstate))
+  local function fmt_fs_entry(fs_entry)
+    return vim.fn.shellescape(buffer.display_fs_entry(fs_entry))
   end
 
   for _, action in ipairs(plan) do
     if action.type == "create" then
-      if action.fstate.ftype == "directory" then
-        print("mkdir " .. fmt_fstate(action.fstate))
+      if action.fs_entry.ftype == "directory" then
+        print("mkdir " .. fmt_fs_entry(action.fs_entry))
       else
-        print("touch " .. fmt_fstate(action.fstate))
+        print("touch " .. fmt_fs_entry(action.fs_entry))
       end
     elseif action.type == "copy" then
-      print("cp " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate))
+      print("cp " .. fmt_fs_entry(action.src_fs_entry) .. " " .. fmt_fs_entry(action.dst_fs_entry))
     elseif action.type == "delete" then
-      print("rm " .. fmt_fstate(action.fstate))
+      print("rm " .. fmt_fs_entry(action.fs_entry))
     elseif action.type == "move" then
-      print("mv " .. fmt_fstate(action.src_fstate) .. " " .. fmt_fstate(action.dst_fstate))
+      print("mv " .. fmt_fs_entry(action.src_fs_entry) .. " " .. fmt_fs_entry(action.dst_fs_entry))
     else
       error("Unrecognized action: " .. vim.inspect(action))
     end

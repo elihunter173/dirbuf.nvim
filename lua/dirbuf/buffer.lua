@@ -2,7 +2,7 @@ local uv = vim.loop
 
 local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
-local FState = fs.FState
+local FSEntry = fs.FSEntry
 
 local M = {}
 
@@ -11,7 +11,7 @@ M.HASH_LEN = 8
 --[[
 local record Dirbuf
   dir: string
-  fstates: {string: FState}
+  fs_entries: {string: FSEntry}
 end
 --]]
 
@@ -191,15 +191,15 @@ function M.parse_line(line, opts)
   end
 end
 
-function M.display_fstate(fstate)
-  local escaped = fstate.fname:gsub("\\", "\\\\"):gsub("\t", "\\t")
-  return escaped .. ftype_to_suffix(fstate.ftype)
+function M.display_fs_entry(fs_entry)
+  local escaped = fs_entry.fname:gsub("\\", "\\\\"):gsub("\t", "\\t")
+  return escaped .. ftype_to_suffix(fs_entry.ftype)
 end
 
 function M.write_dirbuf(dirbuf, opts, track_fname)
   local fname_line = nil
-  for lnum, fstate in ipairs(dirbuf.fstates) do
-    if fstate.fname == track_fname then
+  for lnum, fs_entry in ipairs(dirbuf.fs_entries) do
+    if fs_entry.fname == track_fname then
       fname_line = lnum
       break
     end
@@ -207,9 +207,9 @@ function M.write_dirbuf(dirbuf, opts, track_fname)
 
   local buf_lines = {}
   local max_len = 0
-  for idx, fstate in ipairs(dirbuf.fstates) do
+  for idx, fs_entry in ipairs(dirbuf.fs_entries) do
     local hash = string.format("%08x", idx)
-    local display = M.display_fstate(fstate)
+    local display = M.display_fs_entry(fs_entry)
     if #display > max_len then
       max_len = #display
     end
@@ -224,7 +224,7 @@ function M.write_dirbuf(dirbuf, opts, track_fname)
 end
 
 function M.create_dirbuf(dir, show_hidden)
-  local dirbuf = { dir = dir, fstates = {} }
+  local dirbuf = { dir = dir, fs_entries = {} }
 
   local handle, err, _ = uv.fs_scandir(dir)
   if handle == nil then
@@ -237,10 +237,10 @@ function M.create_dirbuf(dir, show_hidden)
       break
     end
     if show_hidden or not fs.is_hidden(fname) then
-      table.insert(dirbuf.fstates, FState.new(fname, dir, ftype))
+      table.insert(dirbuf.fs_entries, FSEntry.new(fname, dir, ftype))
     end
   end
-  table.sort(dirbuf.fstates, config.get("sort_order"))
+  table.sort(dirbuf.fs_entries, config.get("sort_order"))
 
   return nil, dirbuf
 end

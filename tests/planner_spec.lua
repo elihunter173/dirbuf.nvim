@@ -1,23 +1,21 @@
 local fs = require("dirbuf.fs")
 local planner = require("dirbuf.planner")
 
-local FState = fs.FState
-
-local function file(fname)
-  return FState.new(fname, "", "file")
+local function entry(fname, ftype)
+  return fs.FSEntry.new(fname, "", ftype or "file")
 end
 
 local function apply_plan(fake_fs, plan)
   for _, action in ipairs(plan) do
     if action.type == "create" then
-      fake_fs[action.fstate.path] = ""
+      fake_fs[action.fs_entry.path] = ""
     elseif action.type == "copy" then
-      fake_fs[action.dst_fstate.path] = fake_fs[action.src_fstate.path]
+      fake_fs[action.dst_fs_entry.path] = fake_fs[action.src_fs_entry.path]
     elseif action.type == "delete" then
-      fake_fs[action.fstate.path] = nil
+      fake_fs[action.fs_entry.path] = nil
     elseif action.type == "move" then
-      fake_fs[action.dst_fstate.path] = fake_fs[action.src_fstate.path]
-      fake_fs[action.src_fstate.path] = nil
+      fake_fs[action.dst_fs_entry.path] = fake_fs[action.src_fs_entry.path]
+      fake_fs[action.src_fs_entry.path] = nil
     end
   end
 end
@@ -37,8 +35,8 @@ describe("determine_plan", function()
     local plan = planner.determine_plan({
       new_files = {},
       change_map = {
-        a = { current_fstate = file("a"), stays = true, progress = "unhandled" },
-        b = { current_fstate = file("b"), stays = true, progress = "unhandled" },
+        a = { current_fs_entry = entry("a"), stays = true, progress = "unhandled" },
+        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
       },
     })
 
@@ -53,12 +51,12 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          file("c"),
-          current_fstate = file("a"),
+          entry("c"),
+          current_fs_entry = entry("a"),
           stays = false,
           progress = "unhandled",
         },
-        b = { current_fstate = file("b"), stays = true, progress = "unhandled" },
+        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
       },
     })
 
@@ -72,8 +70,8 @@ describe("determine_plan", function()
     local plan = planner.determine_plan({
       new_files = {},
       change_map = {
-        a = { current_fstate = file("a"), stays = false, progress = "unhandled" },
-        b = { current_fstate = file("b"), stays = true, progress = "unhandled" },
+        a = { current_fs_entry = entry("a"), stays = false, progress = "unhandled" },
+        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
       },
     })
 
@@ -85,9 +83,9 @@ describe("determine_plan", function()
 
   it("create one", function()
     local plan = planner.determine_plan({
-      new_files = { file("a") },
+      new_files = { entry("a") },
       change_map = {
-        b = { current_fstate = file("b"), stays = true, progress = "unhandled" },
+        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
       },
     })
 
@@ -102,12 +100,12 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          file("c"),
-          current_fstate = file("a"),
+          entry("c"),
+          current_fs_entry = entry("a"),
           stays = true,
           progress = "unhandled",
         },
-        b = { current_fstate = file("b"), stays = true, progress = "unhandled" },
+        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
       },
     })
 
@@ -122,14 +120,14 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          file("b"),
-          current_fstate = file("a"),
+          entry("b"),
+          current_fs_entry = entry("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          file("c"),
-          current_fstate = file("b"),
+          entry("c"),
+          current_fs_entry = entry("b"),
           stays = false,
           progress = "unhandled",
         },
@@ -148,20 +146,20 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          file("b"),
-          current_fstate = file("a"),
+          entry("b"),
+          current_fs_entry = entry("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          file("c"),
-          current_fstate = file("b"),
+          entry("c"),
+          current_fs_entry = entry("b"),
           stays = false,
           progress = "unhandled",
         },
         c = {
-          file("a"),
-          current_fstate = file("c"),
+          entry("a"),
+          current_fs_entry = entry("c"),
           stays = false,
           progress = "unhandled",
         },
@@ -183,15 +181,15 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          file("b"),
-          current_fstate = file("a"),
+          entry("b"),
+          current_fs_entry = entry("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          file("a"),
-          file("c"),
-          current_fstate = file("b"),
+          entry("a"),
+          entry("c"),
+          current_fs_entry = entry("b"),
           stays = false,
           progress = "unhandled",
         },
@@ -210,21 +208,21 @@ describe("determine_plan", function()
       new_files = {},
       change_map = {
         a = {
-          file("b"),
-          current_fstate = file("a"),
+          entry("b"),
+          current_fs_entry = entry("a"),
           stays = false,
           progress = "unhandled",
         },
         b = {
-          file("c"),
-          file("d"),
-          current_fstate = file("b"),
+          entry("c"),
+          entry("d"),
+          current_fs_entry = entry("b"),
           stays = false,
           progress = "unhandled",
         },
         c = {
-          file("a"),
-          current_fstate = file("c"),
+          entry("a"),
+          current_fs_entry = entry("c"),
           stays = false,
           progress = "unhandled",
         },

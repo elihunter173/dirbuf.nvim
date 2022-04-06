@@ -1,7 +1,7 @@
 local buffer = require("dirbuf.buffer")
 local fs = require("dirbuf.fs")
 
-local FState = fs.FState
+local FSEntry = fs.FSEntry
 local create, copy, delete, move = fs.plan.create, fs.plan.copy, fs.plan.delete, fs.plan.move
 
 local M = {}
@@ -10,13 +10,13 @@ local M = {}
 -- I wish teal had better language server support but alas
 --[[
 local Changes = {
-  new_files = {FState},
+  new_files = {FSEntry},
   change_map = {string: Change},
 }
 local record Change
-   -- dst_fstates
-   {FState}
-   current_fstate: FState
+   -- dst_fs_entries
+   {FSEntry}
+   current_fs_entry: FSEntry
    stays: bool
    progress: Progress
 end
@@ -31,9 +31,9 @@ end
 function M.build_changes(dirbuf, lines, parse_opts)
   local new_files = {}
   local change_map = {}
-  for _, fstate in pairs(dirbuf.fstates) do
-    change_map[fstate.fname] = {
-      current_fstate = fstate,
+  for _, fs_entry in pairs(dirbuf.fs_entries) do
+    change_map[fs_entry.fname] = {
+      current_fs_entry = fs_entry,
       stays = false,
       handled = false,
     }
@@ -55,23 +55,23 @@ function M.build_changes(dirbuf, lines, parse_opts)
       return string.format("Line %d: Duplicate name '%s'", lnum, fname)
     end
 
-    local dst_fstate = FState.new(fname, dirbuf.dir, ftype)
+    local dst_fs_entry = FSEntry.new(fname, dirbuf.dir, ftype)
 
     if hash == nil then
-      table.insert(new_files, dst_fstate)
+      table.insert(new_files, dst_fs_entry)
     else
-      local current_fstate = dirbuf.fstates[hash]
-      if current_fstate.ftype ~= dst_fstate.ftype then
-        return string.format("line %d: cannot change %s -> %s", lnum, current_fstate.ftype, dst_fstate.ftype)
+      local current_fs_entry = dirbuf.fs_entries[hash]
+      if current_fs_entry.ftype ~= dst_fs_entry.ftype then
+        return string.format("line %d: cannot change %s -> %s", lnum, current_fs_entry.ftype, dst_fs_entry.ftype)
       end
 
-      if current_fstate.fname == dst_fstate.fname then
-        change_map[current_fstate.fname].stays = true
+      if current_fs_entry.fname == dst_fs_entry.fname then
+        change_map[current_fs_entry.fname].stays = true
       else
-        table.insert(change_map[current_fstate.fname], dst_fstate)
+        table.insert(change_map[current_fs_entry.fname], dst_fs_entry)
       end
     end
-    used_fnames[dst_fstate.fname] = true
+    used_fnames[dst_fs_entry.fname] = true
 
     ::continue::
   end
@@ -79,7 +79,7 @@ function M.build_changes(dirbuf, lines, parse_opts)
   return nil, { change_map = change_map, new_files = new_files }
 end
 
--- TODO: Currently we don't always find the optimal unsticking point and we
+-- TODO: Currently we don't alwaies find the optimal unsticking point and we
 -- don't implement the clobbering optimization
 local function resolve_change(plan, change_map, change)
   if change.progress == "handled" then
@@ -106,17 +106,17 @@ local function resolve_change(plan, change_map, change)
   -- as the last change. We arbitrarily pick the first file to move it after
   -- everything
   local move_to = nil
-  local stuck_fstate = nil
-  for _, dst_fstate in ipairs(change) do
-    local dependent_change = change_map[dst_fstate.fname]
+  local stuck_fs_entry = nil
+  for _, dst_fs_entry in ipairs(change) do
+    local dependent_change = change_map[dst_fs_entry.fname]
     if dependent_change ~= nil then
       if dependent_change.progress == "handling" then
         -- We have a cycle, we need to unstick it
-        if stuck_fstate ~= nil then
+        if stuck_fs_entry ~= nil then
           error("my assumption about `stuck_change` was wrong")
         end
         -- We handle this later
-        stuck_fstate = dst_fstate
+        stuck_fs_entry = dst_fs_entry
         goto continue
       else
         -- We can handle the dependent_change directly
@@ -130,9 +130,9 @@ local function resolve_change(plan, change_map, change)
     end
 
     if not change.stays and move_to == nil then
-      move_to = dst_fstate
+      move_to = dst_fs_entry
     else
-      table.insert(plan, copy(change.current_fstate, dst_fstate))
+      table.insert(plan, copy(change.current_fs_entry, dst_fs_entry))
     end
 
     ::continue::
@@ -140,23 +140,23 @@ local function resolve_change(plan, change_map, change)
 
   local gone = false
   if move_to ~= nil then
-    table.insert(plan, move(change.current_fstate, move_to))
+    table.insert(plan, move(change.current_fs_entry, move_to))
     gone = true
   end
 
-  if stuck_fstate ~= nil then
+  if stuck_fs_entry ~= nil then
     if move_to ~= nil then
       -- We have a safe place to copy from
-      post_resolution_action = copy(move_to, stuck_fstate)
+      post_resolution_action = copy(move_to, stuck_fs_entry)
     elseif change.stays then
       -- We have a safe place to copy from
-      post_resolution_action = copy(change.current_fstate, stuck_fstate)
+      post_resolution_action = copy(change.current_fs_entry, stuck_fs_entry)
     else
       -- We have NO safe place to copy from and we don't stay, so move to a
       -- temporary and then move again
-      local temp_fstate = FState.temp(change.current_fstate.ftype)
-      table.insert(plan, move(change.current_fstate, temp_fstate))
-      post_resolution_action = move(temp_fstate, stuck_fstate)
+      local temp_fs_entry = FSEntry.temp(change.current_fs_entry.ftype)
+      table.insert(plan, move(change.current_fs_entry, temp_fs_entry))
+      post_resolution_action = move(temp_fs_entry, stuck_fs_entry)
       gone = true
     end
   end
@@ -164,7 +164,7 @@ local function resolve_change(plan, change_map, change)
   -- The file gets deleted and we never moved it, so we have to directly delete
   -- it
   if not change.stays and not gone then
-    table.insert(plan, delete(change.current_fstate))
+    table.insert(plan, delete(change.current_fs_entry))
   end
 
   change.progress = "handled"
@@ -188,8 +188,8 @@ function M.determine_plan(changes)
   end
 
   -- Create all the new files
-  for _, fstate in ipairs(changes.new_files) do
-    table.insert(plan, create(fstate))
+  for _, fs_entry in ipairs(changes.new_files) do
+    table.insert(plan, create(fs_entry))
   end
 
   return plan

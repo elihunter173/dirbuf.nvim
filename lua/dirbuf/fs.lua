@@ -36,24 +36,24 @@ local enum FType
   "char"
   "block"
 end
-local record FState
+local record FSEntry
   fname: string
   ftype: FType
   path: string
 end
 --]]
 
-M.FState = {}
-local FState = M.FState
+M.FSEntry = {}
+local FSEntry = M.FSEntry
 
-function FState.new(fname, parent, ftype)
+function FSEntry.new(fname, parent, ftype)
   return { fname = fname, path = M.join_paths(parent, fname), ftype = ftype }
 end
 
-function FState.temp(ftype)
+function FSEntry.temp(ftype)
   local temppath = vim.fn.tempname()
   return {
-    -- XXX: This technically violates fname's assumption that it is always a
+    -- XXX: This technically violates fname's assumption that it is alwaies a
     -- simple name and not a path
     fname = temppath,
     path = temppath,
@@ -159,20 +159,20 @@ local function mv(src_path, dst_path, ftype)
   return nil
 end
 
-function M.plan.create(fstate)
-  return { type = "create", fstate = fstate }
+function M.plan.create(fs_entry)
+  return { type = "create", fs_entry = fs_entry }
 end
 
 function M.actions.create(args)
-  local fstate = args.fstate
+  local fs_entry = args.fs_entry
 
   -- FIXME: This is a TOCTOU
-  if uv.fs_access(fstate.path, "W") then
-    return string.format("'%s' already exists", fstate.ftype, fstate.path)
+  if uv.fs_access(fs_entry.path, "W") then
+    return string.format("'%s' already exists", fs_entry.ftype, fs_entry.path)
   end
 
-  if fstate.ftype == "file" then
-    local fd, err = uv.fs_open(fstate.path, "w", DEFAULT_FILE_MODE)
+  if fs_entry.ftype == "file" then
+    local fd, err = uv.fs_open(fs_entry.path, "w", DEFAULT_FILE_MODE)
     if fd == nil then
       return err
     end
@@ -181,39 +181,39 @@ function M.actions.create(args)
     if not success then
       return err
     end
-  elseif fstate.ftype == "directory" then
-    local success, err = uv.fs_mkdir(fstate.path, DEFAULT_DIR_MODE)
+  elseif fs_entry.ftype == "directory" then
+    local success, err = uv.fs_mkdir(fs_entry.path, DEFAULT_DIR_MODE)
     if not success then
       return err
     end
   else
-    return string.format("Cannot create %s", fstate.ftype)
+    return string.format("Cannot create %s", fs_entry.ftype)
   end
 
   return nil
 end
 
-function M.plan.copy(src_fstate, dst_fstate)
-  return { type = "copy", src_fstate = src_fstate, dst_fstate = dst_fstate }
+function M.plan.copy(src_fs_entry, dst_fs_entry)
+  return { type = "copy", src_fs_entry = src_fs_entry, dst_fs_entry = dst_fs_entry }
 end
 
 function M.actions.copy(args)
-  local src_fstate, dst_fstate = args.src_fstate, args.dst_fstate
-  -- We have ensured that the fstates are the same in plan.copy
-  return cp(src_fstate.path, dst_fstate.path, src_fstate.ftype)
+  local src_fs_entry, dst_fs_entry = args.src_fs_entry, args.dst_fs_entry
+  -- We have ensured that the fs_entries are the same in plan.copy
+  return cp(src_fs_entry.path, dst_fs_entry.path, src_fs_entry.ftype)
 end
 
-function M.plan.delete(fstate)
-  return { type = "delete", fstate = fstate }
+function M.plan.delete(fs_entry)
+  return { type = "delete", fs_entry = fs_entry }
 end
 
 function M.actions.delete(args)
-  local fstate = args.fstate
-  return rm(fstate.path, fstate.ftype)
+  local fs_entry = args.fs_entry
+  return rm(fs_entry.path, fs_entry.ftype)
 end
 
-function M.plan.move(src_fstate, dst_fstate)
-  return { type = "move", src_fstate = src_fstate, dst_fstate = dst_fstate }
+function M.plan.move(src_fs_entry, dst_fs_entry)
+  return { type = "move", src_fs_entry = src_fs_entry, dst_fs_entry = dst_fs_entry }
 end
 
 local function rename_loaded_buffers(old_path, new_path)
@@ -243,13 +243,13 @@ local function rename_loaded_buffers(old_path, new_path)
 end
 
 function M.actions.move(args)
-  local src_fstate, dst_fstate = args.src_fstate, args.dst_fstate
-  local err = mv(src_fstate.path, dst_fstate.path, src_fstate.ftype)
+  local src_fs_entry, dst_fs_entry = args.src_fs_entry, args.dst_fs_entry
+  local err = mv(src_fs_entry.path, dst_fs_entry.path, src_fs_entry.ftype)
   if err ~= nil then
-    return string.format("Move failed for %s -> %s: %s", src_fstate.path, dst_fstate.path, err)
+    return string.format("Move failed for %s -> %s: %s", src_fs_entry.path, dst_fs_entry.path, err)
   end
 
-  rename_loaded_buffers(src_fstate.path, dst_fstate.path)
+  rename_loaded_buffers(src_fs_entry.path, dst_fs_entry.path)
 end
 
 return M
