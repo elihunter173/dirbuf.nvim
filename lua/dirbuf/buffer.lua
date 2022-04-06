@@ -135,10 +135,9 @@ local function parse_hash(chars)
   return nil, tonumber(table.concat(string_builder), 16)
 end
 
--- The language of valid dirbuf lines is regular, so normally I would use a
--- regular expression. However, Lua doesn't have a proper regex engine, just
--- simpler patterns. These patterns can't parse dirbuf lines (b/c of escaping),
--- so I manually build the parser. It also gives nicer error messages.
+-- The language of valid dirbuf lines is regular, so normally I would use
+-- regex. However, Lua's patterns cannot parse dirbuf lines because of escaping
+-- and I want better error messages, so I parse lines by hand.
 --
 -- Returns err, hash, fname, ftype
 function M.parse_line(line, opts)

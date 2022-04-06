@@ -102,6 +102,7 @@ local function normalize_path(path)
 end
 
 function M.init_dirbuf(from_path)
+  -- Preserve altbuf
   local altbuf = vim.fn.bufnr("#")
 
   local path = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
@@ -111,7 +112,7 @@ function M.init_dirbuf(from_path)
   -- We ignore errors in case the buffer is empty
   local _, cursor_fname = get_cursor_fname()
   if from_path ~= nil and vim.startswith(from_path, path) then
-    -- See if we're coming from a path below this dirbuf
+    -- See if we're coming from a path below this dirbuf.
     -- If path ends with path_separator, we don't need to clip past it
     local start
     if path:sub(-1, -1) == fs.path_separator then
@@ -138,7 +139,6 @@ function M.init_dirbuf(from_path)
     api.nvim_buf_set_var(CURRENT_BUFFER, "dirbuf_show_hidden", config.get("show_hidden"))
   end
 
-  -- Re-init dirbuf preserving altbuf
   if altbuf ~= -1 then
     vim.fn.setreg("#", altbuf)
   end
@@ -219,10 +219,6 @@ function M.enter(cmd)
 
   local path = fs.join_paths(dir, fname)
   vim.cmd("keepalt " .. cmd .. " " .. vim.fn.fnameescape(path))
-  -- NOTE: Currently Neovim swallows errors in BufEnter autocmds, so this hack
-  -- gets around that: https://github.com/neovim/neovim/issues/13711
-  -- This code is also arguably correct outside of that issue since it means
-  -- dirbuf.enter() on a directory will alwaies open another dirbuf
   if fs.is_directory(path) then
     M.init_dirbuf()
   end

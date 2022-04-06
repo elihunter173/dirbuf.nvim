@@ -6,16 +6,13 @@ local create, copy, delete, move = fs.plan.create, fs.plan.copy, fs.plan.delete,
 
 local M = {}
 
--- Type definitions --
--- I wish teal had better language server support but alas
 --[[
-local Changes = {
-  new_files = {FSEntry},
-  change_map = {string: Change},
+local record Changes
+  new_files: {FSEntry},
+  change_map: {string: Change},
 }
 local record Change
-   -- dst_fs_entries
-   {FSEntry}
+   {FSEntry} -- dst_fs_entries
    current_fs_entry: FSEntry
    stays: bool
    progress: Progress
@@ -27,7 +24,14 @@ local enum Progress
 end
 --]]
 
--- TODO: I wish I didn't just store lines, but I'm not sure how to better do it
+-- `build_changes` creates a diff between the snapshotted state of the
+-- directory buffer `dirbuf` and the updated state of the directory buffer
+-- `lines`.
+--
+-- TODO: It's kinda gross that I just store `lines` because then I have to deal
+-- with parsing here, but I'm not sure of a better way to do it
+--
+-- Returns: err, changes
 function M.build_changes(dirbuf, lines, parse_opts)
   local new_files = {}
   local change_map = {}
@@ -39,9 +43,8 @@ function M.build_changes(dirbuf, lines, parse_opts)
     }
   end
 
-  -- Just to ensure we don't reuse fnames
+  -- No duplicate fnames
   local used_fnames = {}
-  -- Go through every line and build changes
   for lnum, line in ipairs(lines) do
     local err, hash, fname, ftype = buffer.parse_line(line, parse_opts)
     if err ~= nil then
@@ -79,8 +82,8 @@ function M.build_changes(dirbuf, lines, parse_opts)
   return nil, { change_map = change_map, new_files = new_files }
 end
 
--- TODO: Currently we don't alwaies find the optimal unsticking point and we
--- don't implement the clobbering optimization
+-- TODO: Currently we don't always find the optimal unsticking point
+-- Also, sorry this is hard to read...
 local function resolve_change(plan, change_map, change)
   if change.progress == "handled" then
     return
@@ -171,23 +174,20 @@ local function resolve_change(plan, change_map, change)
   return post_resolution_action
 end
 
--- Given the set of `changes` we have, which is described as a map from
--- `current_fname`s to `Change`s, determine the most efficient series of
--- actions necessary to reach the desired progress.
+-- `determine_plan` finds the most efficient sequence of actions necessary to
+-- apply the set of validated changes we have `changes`.
+--
+-- Returns: list of actions as in fs.plan
 function M.determine_plan(changes)
   local plan = {}
 
-  for current_fname, change in pairs(changes.change_map) do
-    -- Empty fname means new file. We handle creating files later.
-    if current_fname ~= "" then
-      local extra_action = resolve_change(plan, changes.change_map, change)
-      if extra_action ~= nil then
-        table.insert(plan, extra_action)
-      end
+  for _, change in pairs(changes.change_map) do
+    local extra_action = resolve_change(plan, changes.change_map, change)
+    if extra_action ~= nil then
+      table.insert(plan, extra_action)
     end
   end
 
-  -- Create all the new files
   for _, fs_entry in ipairs(changes.new_files) do
     table.insert(plan, create(fs_entry))
   end
@@ -195,6 +195,10 @@ function M.determine_plan(changes)
   return plan
 end
 
+-- `execute_plan` executes the plan (i.e. sequence of actions) as created by
+-- `determine_plan` using the `fs.actions` action handlers.
+--
+-- Returns: err
 function M.execute_plan(plan)
   -- TODO: Make this async
   for _, action in ipairs(plan) do

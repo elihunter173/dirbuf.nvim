@@ -176,14 +176,14 @@ function M.actions.create(args)
     if fd == nil then
       return err
     end
-    local success
-    success, err = uv.fs_close(fd)
-    if not success then
+    local ok
+    ok, err = uv.fs_close(fd)
+    if not ok then
       return err
     end
   elseif fs_entry.ftype == "directory" then
-    local success, err = uv.fs_mkdir(fs_entry.path, DEFAULT_DIR_MODE)
-    if not success then
+    local ok, err = uv.fs_mkdir(fs_entry.path, DEFAULT_DIR_MODE)
+    if not ok then
       return err
     end
   else
@@ -199,7 +199,7 @@ end
 
 function M.actions.copy(args)
   local src_fs_entry, dst_fs_entry = args.src_fs_entry, args.dst_fs_entry
-  -- We have ensured that the fs_entries are the same in plan.copy
+  -- planner ensures src and dst have same ftype
   return cp(src_fs_entry.path, dst_fs_entry.path, src_fs_entry.ftype)
 end
 
@@ -244,6 +244,7 @@ end
 
 function M.actions.move(args)
   local src_fs_entry, dst_fs_entry = args.src_fs_entry, args.dst_fs_entry
+  -- planner ensures src and dst have same ftype
   local err = mv(src_fs_entry.path, dst_fs_entry.path, src_fs_entry.ftype)
   if err ~= nil then
     return string.format("Move failed for %s -> %s: %s", src_fs_entry.path, dst_fs_entry.path, err)
