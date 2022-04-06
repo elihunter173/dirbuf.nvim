@@ -78,6 +78,13 @@ local function fill_dirbuf(on_fname)
   return nil
 end
 
+local function get_cursor_fname()
+  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line(), {
+    hash_first = config.get("hash_first"),
+  })
+  return err, fname
+end
+
 -- `normalize_path` takes a `path` entered by the user, potentially containing
 -- duplicate path separators, "..", or trailing path separators, and ensures
 -- that all duplicate path separators are removed, there is no trailing path
@@ -101,9 +108,10 @@ function M.init_dirbuf(from_path)
   api.nvim_buf_set_name(CURRENT_BUFFER, path)
 
   -- Determine where to place cursor
-  local cursor_fname = nil
-  -- See if we're coming from a path below this dirbuf
+  -- We ignore errors in case the buffer is empty
+  local _, cursor_fname = get_cursor_fname()
   if from_path ~= nil and vim.startswith(from_path, path) then
+    -- See if we're coming from a path below this dirbuf
     -- If path ends with path_separator, we don't need to clip past it
     local start
     if path:sub(-1, -1) == fs.path_separator then
@@ -139,13 +147,6 @@ function M.init_dirbuf(from_path)
     api.nvim_err_writeln(err)
     return
   end
-end
-
-local function get_cursor_fname()
-  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line(), {
-    hash_first = config.get("hash_first"),
-  })
-  return err, fname
 end
 
 function M.get_cursor_path()
