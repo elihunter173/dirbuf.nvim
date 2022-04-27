@@ -94,7 +94,6 @@ dirbuf.setup({opts})                                            *dirbuf.setup()*
 
     Example with all the default options: >
         require("dirbuf").setup {
-            hash_first = true,
             hash_padding = 2,
             show_hidden = true,
             sort_order = "default",
@@ -113,18 +112,6 @@ dirbuf.get_cursor_path()                              *dirbuf.get_cursor_path()*
 
 ==============================================================================
 OPTIONS                                                         *dirbuf-options*
-
-|hash_first| (default: `true`)
-    Whether a file's hash should appear before its name within the lines of a
-    directory buffer.
-
-    If `true`, then lines in a directory buffer will look similiar to this: >
-        #deadbeef   file
-        #deadbee5   directory/
-<
-    If `false`, they will look similiar to this: >
-        file         #deadbeef
-        directory/   #deadbee5
 
 |hash_padding| (default: `2`)
     Number of characters of padding between the file hashes and the longest
@@ -176,6 +163,20 @@ OPTIONS                                                         *dirbuf-options*
                 Disables `:write` in directory buffers, forcing users to
                 explicitly invoke `:DirbufSync`.
 
+DEPRECATED OPTIONS
+
+|hash_first| (default: `true`)
+    Whether a file's hash should appear before its name within the lines of a
+    directory buffer.
+
+    If `true`, then lines in a directory buffer will look similiar to this: >
+        #deadbeef   file
+        #deadbee5   directory/
+<
+    If `false`, they will look similiar to this: >
+        file         #deadbeef
+        directory/   #deadbee5
+
 ==============================================================================
 FAQ                                                                 *dirbuf-faq*
 
@@ -189,8 +190,6 @@ However, if you really want to conceal the hashes, you can create a
 normal DirbufHash definition to support `conceal`. >
     syntax clear DirbufHash
     syntax match DirbufHash /^#\x\{8}\t/ms=s-1 conceal cchar=#
-    " or for `hash_first = false`
-    " syntax match DirbufHash /\t#\x\{8}\s*$/ms=s+1 conceal cchar=#
     setlocal conceallevel=2
     setlocal concealcursor=n
 

@@ -3,13 +3,11 @@ local config = require("dirbuf.config")
 describe("update", function()
   it("legal", function()
     local errors = config.update({
-      hash_first = false,
       hash_padding = 3,
       show_hidden = false,
       sort_order = "directories_first",
     })
     assert.equal(0, #errors)
-    assert.equal(false, config.get("hash_first"))
     assert.equal(3, config.get("hash_padding"))
     assert.equal(false, config.get("show_hidden"))
   end)

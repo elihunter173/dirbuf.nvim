@@ -78,7 +78,6 @@ default values listed.
 
 ```lua
 require("dirbuf").setup {
-    hash_first = true,
     hash_padding = 2,
     show_hidden = true,
     sort_order = "default",
