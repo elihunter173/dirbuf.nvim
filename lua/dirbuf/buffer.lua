@@ -75,6 +75,7 @@ local function parse_fname(chars)
     if last_suffix ~= nil then
       -- This suffix wasn't it :)
       table.insert(string_builder, last_suffix)
+      last_suffix = nil
     end
 
     if c == "\\" then
@@ -98,9 +99,13 @@ local function parse_fname(chars)
     elseif is_suffix(c) then
       last_suffix = c
     else
-      last_suffix = nil
       table.insert(string_builder, c)
     end
+  end
+
+  if #string_builder == 0 and last_suffix ~= nil then
+    table.insert(string_builder, last_suffix)
+    last_suffix = nil
   end
 
   if #string_builder > 0 then

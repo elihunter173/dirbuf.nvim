@@ -13,9 +13,9 @@ describe("parse_line", function()
     else
       assert.is_nil(err)
     end
-    assert.equal(expected.hash, hash)
-    assert.equal(expected.fname, fname)
-    assert.equal(expected.ftype, ftype)
+    assert.equal(expected.hash, hash, "hash first: hash")
+    assert.equal(expected.fname, fname, "hash first: fname")
+    assert.equal(expected.ftype, ftype, "hash first: ftype")
 
     err, hash, fname, ftype = buffer.parse_line(hash_last_line, { hash_first = false })
     if expected.err then
@@ -23,9 +23,9 @@ describe("parse_line", function()
     else
       assert.is_nil(err)
     end
-    assert.equal(expected.hash, hash)
-    assert.equal(expected.fname, fname)
-    assert.equal(expected.ftype, ftype)
+    assert.equal(expected.hash, hash, "hash last: hash")
+    assert.equal(expected.fname, fname, "hash last: fname")
+    assert.equal(expected.ftype, ftype, "hash last: ftype")
   end
 
   local function test_suffix(expected_ftype, suffix)
@@ -64,6 +64,15 @@ describe("parse_line", function()
       err = false,
       hash = 10,
       fname = "foo/bar",
+      ftype = "file",
+    })
+  end)
+
+  it("fname is @", function()
+    expect_parse([[@]], [[@]], {
+      err = false,
+      hash = nil,
+      fname = "@",
       ftype = "file",
     })
   end)
