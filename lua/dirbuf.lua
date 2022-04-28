@@ -1,5 +1,4 @@
 local api = vim.api
-local uv = vim.loop
 
 local buffer = require("dirbuf.buffer")
 local config = require("dirbuf.config")
@@ -23,6 +22,22 @@ function M.setup(opts)
   end
 end
 
+-- `normalize_path` takes a `path` entered by the user, potentially containing
+-- duplicate path separators, "..", or trailing path separators, and ensures
+-- that all duplicate path separators are removed, there is no trailing path
+-- separator, and all ".."s are simplified. This does not resolve symlinks.
+--
+-- This exists to ensure that all paths are displayed in a consistent way and
+-- to simplify path manipulation logic.
+local function normalize_path(path)
+  path = vim.fn.simplify(vim.fn.fnamemodify(path, ":p"))
+  -- On Windows, simplify keeps the path_separator on directories
+  if path:sub(-1, -1) == fs.path_separator then
+    path = vim.fn.fnamemodify(path, ":h")
+  end
+  return path
+end
+
 -- `fill_dirbuf` fills the current buffer with the contents of its
 -- corresponding directory. Note that the current buffer must have the name of
 -- a valid directory.
@@ -32,15 +47,9 @@ end
 --
 -- Returns: err
 local function fill_dirbuf(on_fname)
-  local dir, err = uv.fs_realpath(api.nvim_buf_get_name(CURRENT_BUFFER))
-  if dir == nil then
-    return err
-  end
-
+  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local show_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_show_hidden")
-
-  local dirbuf
-  err, dirbuf = buffer.create_dirbuf(dir, show_hidden)
+  local err, dirbuf = buffer.create_dirbuf(dir, show_hidden)
   if err ~= nil then
     return err
   end
@@ -85,46 +94,28 @@ local function get_cursor_fname()
   return err, fname
 end
 
--- `normalize_path` takes a `path` entered by the user, potentially containing
--- duplicate path separators, "..", or trailing path separators, and ensures
--- that all duplicate path separators are removed, there is no trailing path
--- separator, and all ".."s are simplified. This does not resolve symlinks.
---
--- This exists to ensure that all paths are displayed in a consistent way and
--- to simplify path manipulation logic.
-local function normalize_path(path)
-  path = vim.fn.simplify(path)
-  -- On Windows, simplify keeps the path_separator on directories
-  if path:sub(-1, -1) == fs.path_separator then
-    path = vim.fn.fnamemodify(path, ":h")
-  end
-  return path
-end
-
 function M.init_dirbuf(from_path)
   -- Preserve altbuf
   local altbuf = vim.fn.bufnr("#")
 
-  local path = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
+  local path = normalize_path(vim.fn.expand("%"))
   api.nvim_buf_set_name(CURRENT_BUFFER, path)
 
   -- Determine where to place cursor
   -- We ignore errors in case the buffer is empty
   local _, cursor_fname = get_cursor_fname()
+  -- See if we're coming from a path below this dirbuf.
   if from_path ~= nil and vim.startswith(from_path, path) then
-    -- See if we're coming from a path below this dirbuf.
-    -- If path ends with path_separator, we don't need to clip past it
-    local start
-    if path:sub(-1, -1) == fs.path_separator then
-      start = #path + 1
-    else
-      start = #path + 2
+    -- Make sure we're clipping past the "/" in from_path
+    local fname_start = #path + 1
+    if path:sub(-1, -1) ~= fs.path_separator then
+      fname_start = fname_start + 1
     end
-    local last_path_separator = from_path:find(fs.path_separator, start, true)
+    local last_path_separator = from_path:find(fs.path_separator, fname_start, true)
     if last_path_separator ~= nil then
-      cursor_fname = from_path:sub(start, last_path_separator - 1)
+      cursor_fname = from_path:sub(fname_start, last_path_separator - 1)
     else
-      cursor_fname = from_path:sub(start)
+      cursor_fname = from_path:sub(fname_start)
     end
   end
 
@@ -157,7 +148,7 @@ function M.get_cursor_path()
   if err ~= nil then
     error(err)
   end
-  local dir = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
+  local dir = normalize_path(vim.fn.expand("%"))
   return fs.join_paths(dir, fname)
 end
 
@@ -175,9 +166,9 @@ function M.open(path)
   if path == "" then
     path = "."
   end
-  path = directify(normalize_path(path))
+  path = normalize_path(directify(path))
 
-  local from_path = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
+  local from_path = normalize_path(vim.fn.expand("%"))
   if from_path == path then
     -- If we're not leaving, we want to keep the cursor on the same line
     local err, fname = get_cursor_fname()
@@ -208,8 +199,6 @@ function M.enter(cmd)
     return
   end
 
-  local dir = normalize_path(api.nvim_buf_get_name(CURRENT_BUFFER))
-
   local err, fname = get_cursor_fname()
   if err ~= nil then
     api.nvim_err_writeln(err)
@@ -220,6 +209,7 @@ function M.enter(cmd)
     return
   end
 
+  local dir = normalize_path(vim.fn.expand("%"))
   local path = fs.join_paths(dir, fname)
   vim.cmd("keepalt " .. cmd .. " " .. vim.fn.fnameescape(path))
   if fs.is_directory(path) then
@@ -245,14 +235,9 @@ end
 local function check_dirbuf(buf)
   local saved_dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
 
-  local dir, err = uv.fs_realpath(api.nvim_buf_get_name(buf))
-  if dir == nil then
-    return err
-  end
-
+  local dir = api.nvim_buf_get_name(buf)
   local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
-  local current_dirbuf
-  err, current_dirbuf = buffer.create_dirbuf(dir, show_hidden)
+  local err, current_dirbuf = buffer.create_dirbuf(dir, show_hidden)
   if err ~= nil then
     return "Error while checking: " .. err
   end
