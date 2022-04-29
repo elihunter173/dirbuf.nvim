@@ -48,8 +48,7 @@ end
 -- Returns: err
 local function fill_dirbuf(on_fname)
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
-  local show_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_show_hidden")
-  local err, fs_entries = buffer.get_fs_entries(dir, show_hidden)
+  local err, fs_entries = buffer.get_fs_entries(dir, vim.b.dirbuf_show_hidden)
   if err ~= nil then
     return err
   end
@@ -59,21 +58,16 @@ local function fill_dirbuf(on_fname)
   -- and potentially messing up their directory on accident
   local hash_first = config.get("hash_first")
   local buf_lines, max_len, fname_line = buffer.write_fs_entries(fs_entries, { hash_first = hash_first }, on_fname)
-  -- HACK: We have to use VimL buffer-local options because
-  -- `api.nvim_buf_get_option` returns unitialized garbage on unset variables
-  -- (https://github.com/neovim/neovim/pull/15996)
-  -- TODO: Use `api.nvim_buf_get_option_value` next time we bump the minimum
-  -- Neovim version
-  local undolevels = api.nvim_eval("&l:undolevels")
-  api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", -1)
+  local undolevels = vim.bo.undolevels
+  vim.bo.undolevels = -1
   api.nvim_buf_set_lines(CURRENT_BUFFER, 0, -1, true, buf_lines)
-  api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", undolevels)
-  api.nvim_buf_set_var(CURRENT_BUFFER, "dirbuf", fs_entries)
+  vim.bo.undolevels = undolevels
+  vim.b.dirbuf = fs_entries
 
   if hash_first then
-    api.nvim_buf_set_option(CURRENT_BUFFER, "tabstop", #"#" + buffer.HASH_LEN + config.get("hash_padding"))
+    vim.bo.tabstop = #"#" + buffer.HASH_LEN + config.get("hash_padding")
   else
-    api.nvim_buf_set_option(CURRENT_BUFFER, "tabstop", max_len + config.get("hash_padding"))
+    vim.bo.tabstop = max_len + config.get("hash_padding")
   end
 
   local cursor_col = 0
@@ -82,7 +76,7 @@ local function fill_dirbuf(on_fname)
   end
   api.nvim_win_set_cursor(CURRENT_WINDOW, { fname_line or 1, cursor_col })
 
-  api.nvim_buf_set_option(CURRENT_BUFFER, "modified", false)
+  vim.bo.modified = false
 
   return nil
 end
@@ -120,17 +114,16 @@ function M.init_dirbuf(from_path)
   end
 
   -- Set dirbuf options
-  api.nvim_buf_set_option(CURRENT_BUFFER, "filetype", "dirbuf")
-  api.nvim_buf_set_option(CURRENT_BUFFER, "buftype", "acwrite")
-  api.nvim_buf_set_option(CURRENT_BUFFER, "bufhidden", "wipe")
+  vim.bo.filetype = "dirbuf"
+  vim.bo.buftype = "acwrite"
+  vim.bo.bufhidden = "wipe"
   -- Normally unnecessary but sometimes other plugins make things unmodifiable,
   -- so we have to do this to prevent running into errors in fill_dirbuf
-  api.nvim_buf_set_option(CURRENT_BUFFER, "modifiable", true)
+  vim.bo.modifiable = true
 
   -- Set "dirbuf_show_hidden" to default if it is unset
-  local ok, _ = pcall(api.nvim_buf_get_var, CURRENT_BUFFER, "dirbuf_show_hidden")
-  if not ok then
-    api.nvim_buf_set_var(CURRENT_BUFFER, "dirbuf_show_hidden", config.get("show_hidden"))
+  if vim.b.dirbuf_show_hidden == nil then
+    vim.b.dirbuf_show_hidden = config.get("show_hidden")
   end
 
   if altbuf ~= -1 then
@@ -180,7 +173,7 @@ function M.open(path)
   end
 
   local keepalt = ""
-  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") == "dirbuf" then
+  if vim.bo.filetype == "dirbuf" then
     -- If we're leaving a dirbuf, keep our alternate buffer
     keepalt = "keepalt"
   end
@@ -194,7 +187,7 @@ function M.enter(cmd)
     cmd = "edit"
   end
 
-  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+  if vim.bo.filetype ~= "dirbuf" then
     api.nvim_err_writeln("Operation only supports 'filetype=dirbuf'")
     return
   end
@@ -204,7 +197,7 @@ function M.enter(cmd)
     api.nvim_err_writeln(err)
     return
   end
-  if api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
+  if vim.bo.modified then
     api.nvim_err_writeln(string.format("Cannot enter '%s'. Dirbuf must be saved first", fname))
     return
   end
@@ -218,7 +211,7 @@ function M.enter(cmd)
 end
 
 function M.quit()
-  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+  if vim.bo.filetype ~= "dirbuf" then
     api.nvim_err_writeln(":DirbufQuit only supports 'filetype=dirbuf'")
     return
   end
@@ -233,16 +226,13 @@ end
 
 -- Ensure that the directory has not changed since our last snapshot
 local function check_dirbuf(buf)
-  local saved_fs_entries = api.nvim_buf_get_var(buf, "dirbuf")
-
   local dir = api.nvim_buf_get_name(buf)
-  local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
-  local err, current_fs_entries = buffer.get_fs_entries(dir, show_hidden)
+  local err, current_fs_entries = buffer.get_fs_entries(dir, vim.bo.dirbuf_show_hidden)
   if err ~= nil then
     return "Error while checking: " .. err
   end
 
-  if not vim.deep_equal(saved_fs_entries, current_fs_entries) then
+  if not vim.deep_equal(vim.b.dirbuf, current_fs_entries) then
     return "Snapshot out of date with current directory. Run :edit! to refresh"
   end
 
@@ -302,7 +292,7 @@ function M.sync(opt)
     opt = ""
   end
 
-  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+  if vim.bo.filetype ~= "dirbuf" then
     api.nvim_err_writeln(":DirbufSync only supports 'filetype=dirbuf'")
     return
   end
@@ -311,7 +301,7 @@ function M.sync(opt)
     api.nvim_err_writeln(":DirbufSync unrecognized option: " .. opt)
   end
 
-  if not api.nvim_buf_get_option(CURRENT_BUFFER, "modified") then
+  if not vim.bo.modified then
     return
   end
 
@@ -322,10 +312,9 @@ function M.sync(opt)
   end
 
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
-  local fs_entries = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf")
   local lines = api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)
   local changes
-  err, changes = planner.build_changes(dir, fs_entries, lines, { hash_first = config.get("hash_first") })
+  err, changes = planner.build_changes(dir, vim.b.dirbuf, lines, { hash_first = config.get("hash_first") })
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -348,7 +337,7 @@ function M.sync(opt)
 end
 
 function M.toggle_hide()
-  if api.nvim_buf_get_option(CURRENT_BUFFER, "filetype") ~= "dirbuf" then
+  if vim.bo.filetype ~= "dirbuf" then
     api.nvim_err_writeln("Operation only supports 'filetype=dirbuf'")
     return
   end
