@@ -200,9 +200,9 @@ function M.display_fs_entry(fs_entry)
   return escaped .. ftype_to_suffix(fs_entry.ftype)
 end
 
-function M.write_dirbuf(dirbuf, opts, track_fname)
+function M.write_fs_entries(fs_entries, opts, track_fname)
   local fname_line = nil
-  for lnum, fs_entry in ipairs(dirbuf.fs_entries) do
+  for lnum, fs_entry in ipairs(fs_entries) do
     if fs_entry.fname == track_fname then
       fname_line = lnum
       break
@@ -211,7 +211,7 @@ function M.write_dirbuf(dirbuf, opts, track_fname)
 
   local buf_lines = {}
   local max_len = 0
-  for idx, fs_entry in ipairs(dirbuf.fs_entries) do
+  for idx, fs_entry in ipairs(fs_entries) do
     local hash = string.format("%08x", idx)
     local display = M.display_fs_entry(fs_entry)
     if #display > max_len then
@@ -227,8 +227,8 @@ function M.write_dirbuf(dirbuf, opts, track_fname)
   return buf_lines, max_len, fname_line
 end
 
-function M.create_dirbuf(dir, show_hidden)
-  local dirbuf = { dir = dir, fs_entries = {} }
+function M.get_fs_entries(dir, show_hidden)
+  local fs_entries = {}
 
   local handle, err, _ = uv.fs_scandir(dir)
   if handle == nil then
@@ -241,12 +241,12 @@ function M.create_dirbuf(dir, show_hidden)
       break
     end
     if show_hidden or not fs.is_hidden(fname) then
-      table.insert(dirbuf.fs_entries, FSEntry.new(fname, dir, ftype))
+      table.insert(fs_entries, FSEntry.new(fname, dir, ftype))
     end
   end
-  table.sort(dirbuf.fs_entries, config.get("sort_order"))
+  table.sort(fs_entries, config.get("sort_order"))
 
-  return nil, dirbuf
+  return nil, fs_entries
 end
 
 return M

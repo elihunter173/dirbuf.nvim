@@ -49,7 +49,7 @@ end
 local function fill_dirbuf(on_fname)
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local show_hidden = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf_show_hidden")
-  local err, dirbuf = buffer.create_dirbuf(dir, show_hidden)
+  local err, fs_entries = buffer.get_fs_entries(dir, show_hidden)
   if err ~= nil then
     return err
   end
@@ -58,7 +58,7 @@ local function fill_dirbuf(on_fname)
   -- we set the lines. This prevents people going back to now-invalid hashes
   -- and potentially messing up their directory on accident
   local hash_first = config.get("hash_first")
-  local buf_lines, max_len, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = hash_first }, on_fname)
+  local buf_lines, max_len, fname_line = buffer.write_fs_entries(fs_entries, { hash_first = hash_first }, on_fname)
   -- HACK: We have to use VimL buffer-local options because
   -- `api.nvim_buf_get_option` returns unitialized garbage on unset variables
   -- (https://github.com/neovim/neovim/pull/15996)
@@ -68,7 +68,7 @@ local function fill_dirbuf(on_fname)
   api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", -1)
   api.nvim_buf_set_lines(CURRENT_BUFFER, 0, -1, true, buf_lines)
   api.nvim_buf_set_option(CURRENT_BUFFER, "undolevels", undolevels)
-  api.nvim_buf_set_var(CURRENT_BUFFER, "dirbuf", dirbuf)
+  api.nvim_buf_set_var(CURRENT_BUFFER, "dirbuf", fs_entries)
 
   if hash_first then
     api.nvim_buf_set_option(CURRENT_BUFFER, "tabstop", #"#" + buffer.HASH_LEN + config.get("hash_padding"))
@@ -233,16 +233,16 @@ end
 
 -- Ensure that the directory has not changed since our last snapshot
 local function check_dirbuf(buf)
-  local saved_dirbuf = api.nvim_buf_get_var(buf, "dirbuf")
+  local saved_fs_entries = api.nvim_buf_get_var(buf, "dirbuf")
 
   local dir = api.nvim_buf_get_name(buf)
   local show_hidden = api.nvim_buf_get_var(buf, "dirbuf_show_hidden")
-  local err, current_dirbuf = buffer.create_dirbuf(dir, show_hidden)
+  local err, current_fs_entries = buffer.get_fs_entries(dir, show_hidden)
   if err ~= nil then
     return "Error while checking: " .. err
   end
 
-  if not vim.deep_equal(saved_dirbuf, current_dirbuf) then
+  if not vim.deep_equal(saved_fs_entries, current_fs_entries) then
     return "Snapshot out of date with current directory. Run :edit! to refresh"
   end
 
@@ -321,10 +321,11 @@ function M.sync(opt)
     return
   end
 
-  local dirbuf = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf")
+  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
+  local fs_entries = api.nvim_buf_get_var(CURRENT_BUFFER, "dirbuf")
   local lines = api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)
   local changes
-  err, changes = planner.build_changes(dirbuf, lines, { hash_first = config.get("hash_first") })
+  err, changes = planner.build_changes(dir, fs_entries, lines, { hash_first = config.get("hash_first") })
   if err ~= nil then
     api.nvim_err_writeln(err)
     return

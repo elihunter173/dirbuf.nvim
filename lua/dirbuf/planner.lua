@@ -32,10 +32,10 @@ end
 -- with parsing here, but I'm not sure of a better way to do it
 --
 -- Returns: err, changes
-function M.build_changes(dirbuf, lines, parse_opts)
+function M.build_changes(dir, fs_entries, lines, parse_opts)
   local new_files = {}
   local change_map = {}
-  for _, fs_entry in pairs(dirbuf.fs_entries) do
+  for _, fs_entry in pairs(fs_entries) do
     change_map[fs_entry.fname] = {
       current_fs_entry = fs_entry,
       stays = false,
@@ -58,12 +58,12 @@ function M.build_changes(dirbuf, lines, parse_opts)
       return string.format("Line %d: Duplicate name '%s'", lnum, fname)
     end
 
-    local dst_fs_entry = FSEntry.new(fname, dirbuf.dir, ftype)
+    local dst_fs_entry = FSEntry.new(fname, dir, ftype)
 
     if hash == nil then
       table.insert(new_files, dst_fs_entry)
     else
-      local current_fs_entry = dirbuf.fs_entries[hash]
+      local current_fs_entry = fs_entries[hash]
       if current_fs_entry.ftype ~= dst_fs_entry.ftype then
         return string.format("line %d: cannot change %s -> %s", lnum, current_fs_entry.ftype, dst_fs_entry.ftype)
       end

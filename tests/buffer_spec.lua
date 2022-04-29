@@ -203,22 +203,19 @@ describe("parse_line", function()
   end)
 end)
 
-describe("write_dirbuf", function()
+describe("write_fs_entries", function()
   it("types", function()
-    local dirbuf = {
-      dir = "",
-      fs_entries = {
-        entry("file", "file"),
-        entry("directory", "directory"),
-        entry("link", "link"),
-        entry("fifo", "fifo"),
-        entry("socket", "socket"),
-        entry("char", "char"),
-        entry("block", "block"),
-      },
+    local fs_entries = {
+      entry("file", "file"),
+      entry("directory", "directory"),
+      entry("link", "link"),
+      entry("fifo", "fifo"),
+      entry("socket", "socket"),
+      entry("char", "char"),
+      entry("block", "block"),
     }
 
-    local buf_lines, max_len = buffer.write_dirbuf(dirbuf, { hash_first = false })
+    local buf_lines, max_len = buffer.write_fs_entries(fs_entries, { hash_first = false })
     assert.equal(#"directory/", max_len)
     assert.same({
       "file	#00000001",
@@ -230,7 +227,7 @@ describe("write_dirbuf", function()
       "block#	#00000007",
     }, buf_lines)
 
-    buf_lines, _ = buffer.write_dirbuf(dirbuf, { hash_first = true })
+    buf_lines, _ = buffer.write_fs_entries(fs_entries, { hash_first = true })
     assert.same({
       "#00000001	file",
       "#00000002	directory/",
@@ -243,22 +240,19 @@ describe("write_dirbuf", function()
   end)
 
   it("escape characters", function()
-    local dirbuf = { dir = "", fs_entries = { entry("a\\\t") } }
-    local buf_lines, max_len = buffer.write_dirbuf(dirbuf, { hash_first = false })
+    local fs_entries = { entry("a\\\t") }
+    local buf_lines, max_len = buffer.write_fs_entries(fs_entries, { hash_first = false })
     assert.equal(#[[a\\\t]], max_len)
     assert.same(buf_lines, { [[a\\\t	#00000001]] })
-    buf_lines, _ = buffer.write_dirbuf(dirbuf, { hash_first = true })
+    buf_lines, _ = buffer.write_fs_entries(fs_entries, { hash_first = true })
     assert.same({ [[#00000001	a\\\t]] }, buf_lines)
   end)
 
   it("track_fname", function()
-    local dirbuf = {
-      dir = "",
-      fs_entries = { entry("a"), entry("b"), entry("c") },
-    }
-    local _, _, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = true }, "b")
+    local fs_entries = { entry("a"), entry("b"), entry("c") }
+    local _, _, fname_line = buffer.write_fs_entries(fs_entries, { hash_first = true }, "b")
     assert.equal(2, fname_line)
-    _, _, fname_line = buffer.write_dirbuf(dirbuf, { hash_first = false }, "b")
+    _, _, fname_line = buffer.write_fs_entries(fs_entries, { hash_first = false }, "b")
     assert.equal(2, fname_line)
   end)
 end)
