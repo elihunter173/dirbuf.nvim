@@ -185,7 +185,7 @@ function M.open(path)
     keepalt = "keepalt"
   end
 
-  vim.cmd(keepalt .. " edit " .. vim.fn.fnameescape(path))
+  vim.cmd(keepalt .. " noautocmd edit " .. vim.fn.fnameescape(path))
   M.init_dirbuf(from_path)
 end
 
@@ -211,7 +211,7 @@ function M.enter(cmd)
 
   local dir = normalize_path(vim.fn.expand("%"))
   local path = fs.join_paths(dir, fname)
-  vim.cmd("keepalt " .. cmd .. " " .. vim.fn.fnameescape(path))
+  vim.cmd("keepalt noautocmd " .. cmd .. " " .. vim.fn.fnameescape(path))
   if fs.is_directory(path) then
     M.init_dirbuf()
   end
