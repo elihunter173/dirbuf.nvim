@@ -227,7 +227,7 @@ end
 -- Ensure that the directory has not changed since our last snapshot
 local function check_dirbuf(buf)
   local dir = api.nvim_buf_get_name(buf)
-  local err, current_fs_entries = buffer.get_fs_entries(dir, vim.bo.dirbuf_show_hidden)
+  local err, current_fs_entries = buffer.get_fs_entries(dir, vim.b.dirbuf_show_hidden)
   if err ~= nil then
     return "Error while checking: " .. err
   end
