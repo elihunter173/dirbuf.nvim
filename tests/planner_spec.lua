@@ -6,13 +6,13 @@ local function mkplan(before, after)
   local fake_fs = {}
   local before_fs_entries = {}
   for _, line in ipairs(before) do
-    local err, hash, fname, ftype = buffer.parse_line(line, { hash_first = true })
+    local err, hash, fname, ftype = buffer.parse_line(line)
     assert(err == nil, err)
     fake_fs["/" .. fname] = fname
     before_fs_entries[hash] = fs.FSEntry.new(fname, "/", ftype)
   end
 
-  local err, changes = planner.build_changes("/", before_fs_entries, after, { hash_first = true })
+  local err, changes = planner.build_changes("/", before_fs_entries, after)
   assert(err == nil, err)
   local plan = planner.determine_plan(changes)
   return fake_fs, plan

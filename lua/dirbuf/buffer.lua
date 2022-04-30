@@ -62,6 +62,7 @@ local function ftype_to_suffix(ftype)
   end
 end
 
+-- Returns err, fname, ftype
 local function parse_fname(chars)
   local string_builder = {}
 
@@ -117,6 +118,7 @@ local function parse_fname(chars)
   end
 end
 
+-- Returns err, hash
 local function parse_hash(chars)
   local c = chars()
   if c == nil then
@@ -145,54 +147,29 @@ end
 -- and I want better error messages, so I parse lines by hand.
 --
 -- Returns err, hash, fname, ftype
-function M.parse_line(line, opts)
+function M.parse_line(line)
   local chars = line:gmatch(".")
 
-  if opts.hash_first then
-    -- We throw away the error because if there's an error in parsing the hash,
-    -- we treat the whole thing as an fname
-    local _, hash = parse_hash(chars)
-    if hash == nil or chars() ~= "\t" then
-      hash = nil
-      chars = line:gmatch(".")
-    end
-
-    local err, fname, ftype = parse_fname(chars)
-    if err ~= nil then
-      return err
-    end
-
-    -- Ensure that we parsed the whole line
-    local c = chars()
-    if c ~= nil then
-      return string.format("Unexpected character %s after fname", vim.inspect(c))
-    end
-
-    return nil, hash, fname, ftype
-  else
-    local err, fname, ftype = parse_fname(chars)
-    if err ~= nil then
-      return err
-    end
-
-    local hash
-    err, hash = parse_hash(chars)
-    if err ~= nil then
-      return err
-    end
-
-    -- Consume trailing whitespace
-    while true do
-      local c = chars()
-      if c == nil then
-        break
-      elseif not c:match("%s") then
-        return string.format("Unexpected character %s after hash", vim.inspect(c))
-      end
-    end
-
-    return nil, hash, fname, ftype
+  -- We throw away the error because if there's an error in parsing the hash,
+  -- we treat the whole thing as an fname
+  local _, hash = parse_hash(chars)
+  if hash == nil or chars() ~= "\t" then
+    hash = nil
+    chars = line:gmatch(".")
   end
+
+  local err, fname, ftype = parse_fname(chars)
+  if err ~= nil then
+    return err
+  end
+
+  -- Ensure that we parsed the whole line
+  local c = chars()
+  if c ~= nil then
+    return string.format("Unexpected character %s after fname", vim.inspect(c))
+  end
+
+  return nil, hash, fname, ftype
 end
 
 function M.display_fs_entry(fs_entry)
@@ -200,7 +177,7 @@ function M.display_fs_entry(fs_entry)
   return escaped .. ftype_to_suffix(fs_entry.ftype)
 end
 
-function M.write_fs_entries(fs_entries, opts, track_fname)
+function M.write_fs_entries(fs_entries, track_fname)
   local fname_line = nil
   for lnum, fs_entry in ipairs(fs_entries) do
     if fs_entry.fname == track_fname then
@@ -210,21 +187,13 @@ function M.write_fs_entries(fs_entries, opts, track_fname)
   end
 
   local buf_lines = {}
-  local max_len = 0
   for idx, fs_entry in ipairs(fs_entries) do
     local hash = string.format("%08x", idx)
     local display = M.display_fs_entry(fs_entry)
-    if #display > max_len then
-      max_len = #display
-    end
-    if opts.hash_first then
-      table.insert(buf_lines, "#" .. hash .. "\t" .. display)
-    else
-      table.insert(buf_lines, display .. "\t#" .. hash)
-    end
+    table.insert(buf_lines, "#" .. hash .. "\t" .. display)
   end
 
-  return buf_lines, max_len, fname_line
+  return buf_lines, fname_line
 end
 
 function M.get_fs_entries(dir, show_hidden)

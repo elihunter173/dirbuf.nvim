@@ -1,32 +1,19 @@
-let s:hash_first = v:lua.require('dirbuf.config').get('hash_first')
-
 " # Regex Breakdown
-" (a) and (b) define all valid character units, so this regex matches one or
-" more valid character units at the beginning of a line.
 "
-" /^\([^\\\t]\|\\[\\t]\)\+\t/
-"     ^^(a)^^  ^^(b)^^    (c)
+" /^\([^\\\t]\|\\[\\t]\)\+$/
+"     ^^(a)^^  ^^(b)^^   (c)
 " (a): all valid single-characters (i.e. not tabs or escape sequences).
 " (b): all valid escape sequences.
-" (c): the end character (either \t or $)
+" (c): suffix + $ (end of line)
 "
-" Object suffixes (e.g. / for directories) are this regular expression with
-" their appropriate suffix tacked on. The longest regex is the one
-" highlighted, so the suffix always controls the color. We include me=e-1 (or
-" me=e-2 depending on suffix) to set the 'match end' to be one before the
-" normal 'end' so the suffix doesn't get highlighted.
+" The longest regex is the one highlighted, so the suffix always controls the
+" color. We include `me=e-suffix_len` to set the 'match end' to be one before
+" the normal 'end' so the suffix doesn't get highlighted.
 "
 " The suffixes are taken from `ls --classify` and zsh's tab completion.
-if s:hash_first
-  function! s:SetMatch(group_name, suffix, suffix_len)
-    execute 'syntax match 'a:group_name.' /\([^\\\t]\|\\[\\t]\)\+'.a:suffix.'$/me=e-'.(a:suffix_len)
-  endfunction
-else
-  function! s:SetMatch(group_name, suffix, suffix_len)
-    execute 'syntax match 'a:group_name.' /^\([^\\\t]\|\\[\\t]\)\+'.a:suffix.'\t/me=e-'.(a:suffix_len + 1)
-    execute 'syntax match 'a:group_name.' /^\([^\\\t]\|\\[\\t]\)\+'.a:suffix.'$/me=e-'.(a:suffix_len)
-  endfunction
-endif
+function! s:SetMatch(group_name, suffix, suffix_len)
+  execute 'syntax match 'a:group_name.' /\([^\\\t]\|\\[\\t]\)\+'.a:suffix.'$/me=e-'.a:suffix_len
+endfunction
 call s:SetMatch('DirbufFile', '', 0)
 call s:SetMatch('DirbufDirectory', '[/\\]', 1)
 call s:SetMatch('DirbufLink', '@', 1)
@@ -35,24 +22,16 @@ call s:SetMatch('DirbufSocket', '=', 1)
 call s:SetMatch('DirbufChar', '%', 1)
 call s:SetMatch('DirbufBlock', '\\$', 1)
 
-" We include `ms=s+/-1` to not highlight the tab
-if s:hash_first
-  syntax match DirbufHash /^#\x\{8}\t/ms=s-1
-else
-  syntax match DirbufHash /\t#\x\{8}\s*$/ms=s+1
-endif
+" We include `ms=s-1` to not highlight the tab
+syntax match DirbufHash /^#\x\{8}\t/ms=s-1
 
 " /^\(\(The_Regular_Expression\)\@!.\)*$/
 " Finds every except for the regular expression
 " See: https://vim.fandom.com/wiki/Search_for_lines_not_containing_pattern_and_other_helpful_searches#Searching_with_.2F
-if s:hash_first
-  syntax match DirbufMalformedLine /^\(\(\_^\(#\x\{8}\t\)\?\([^\\\t]\|\\[\\t]\)\+\\\?\_$\)\@!.\)*$/
-else
-  syntax match DirbufMalformedLine /^\(\(\_^\([^\\\t]\|\\[\\t]\)\+\\\?\(\t#\x\{8}\)\?\s*\_$\)\@!.\)*$/
-endif
+syntax match DirbufMalformedLine /^\(\(\_^\(#\x\{8}\t\)\?\([^\\\t]\|\\[\\t]\)\+\\\?\_$\)\@!.\)*$/
 
-" Highlight each object according to its color in by ls --color=always
-" This was taken and modified from nvim-tree.lua's colors.lua
+" Highlight each object according to its color in by ls --color=always. This
+" fallback system was taken and modified from nvim-tree.lua's colors.lua
 function! s:SetColor(group_name, color_num, fallback_group, fallback_color)
   if exists('g:terminal_color_'.a:color_num)
     let l:color = get(g:, 'terminal_color_'.a:color_num)

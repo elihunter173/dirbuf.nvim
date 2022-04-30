@@ -32,7 +32,7 @@ end
 -- with parsing here, but I'm not sure of a better way to do it
 --
 -- Returns: err, changes
-function M.build_changes(dir, fs_entries, lines, parse_opts)
+function M.build_changes(dir, fs_entries, lines)
   local new_files = {}
   local change_map = {}
   for _, fs_entry in pairs(fs_entries) do
@@ -46,7 +46,7 @@ function M.build_changes(dir, fs_entries, lines, parse_opts)
   -- No duplicate fnames
   local used_fnames = {}
   for lnum, line in ipairs(lines) do
-    local err, hash, fname, ftype = buffer.parse_line(line, parse_opts)
+    local err, hash, fname, ftype = buffer.parse_line(line)
     if err ~= nil then
       return string.format("Line %d: %s", lnum, err)
     end

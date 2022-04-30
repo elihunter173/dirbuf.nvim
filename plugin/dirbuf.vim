@@ -1,4 +1,4 @@
-if exists("g:loaded_dirbuf")
+if exists('g:loaded_dirbuf')
   finish
 endif
 

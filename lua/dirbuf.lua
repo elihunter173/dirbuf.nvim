@@ -56,36 +56,18 @@ local function fill_dirbuf(on_fname)
   -- Before we set lines, we set undolevels to -1 so we delete the history when
   -- we set the lines. This prevents people going back to now-invalid hashes
   -- and potentially messing up their directory on accident
-  local hash_first = config.get("hash_first")
-  local buf_lines, max_len, fname_line = buffer.write_fs_entries(fs_entries, { hash_first = hash_first }, on_fname)
+  local buf_lines, fname_line = buffer.write_fs_entries(fs_entries, on_fname)
   local undolevels = vim.bo.undolevels
   vim.bo.undolevels = -1
   api.nvim_buf_set_lines(CURRENT_BUFFER, 0, -1, true, buf_lines)
   vim.bo.undolevels = undolevels
   vim.b.dirbuf = fs_entries
 
-  if hash_first then
-    vim.bo.tabstop = #"#" + buffer.HASH_LEN + config.get("hash_padding")
-  else
-    vim.bo.tabstop = max_len + config.get("hash_padding")
-  end
-
-  local cursor_col = 0
-  if hash_first then
-    cursor_col = #"#" + buffer.HASH_LEN + #"\t"
-  end
-  api.nvim_win_set_cursor(CURRENT_WINDOW, { fname_line or 1, cursor_col })
-
+  vim.bo.tabstop = #"#" + buffer.HASH_LEN + config.get("hash_padding")
+  api.nvim_win_set_cursor(CURRENT_WINDOW, { fname_line or 1, #"#" + buffer.HASH_LEN + #"\t" })
   vim.bo.modified = false
 
   return nil
-end
-
-local function get_cursor_fname()
-  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line(), {
-    hash_first = config.get("hash_first"),
-  })
-  return err, fname
 end
 
 function M.init_dirbuf(from_path)
@@ -97,7 +79,7 @@ function M.init_dirbuf(from_path)
 
   -- Determine where to place cursor
   -- We ignore errors in case the buffer is empty
-  local _, cursor_fname = get_cursor_fname()
+  local _, _, cursor_fname, _ = buffer.parse_line(api.nvim_get_current_line())
   -- See if we're coming from a path below this dirbuf.
   if from_path ~= nil and vim.startswith(from_path, path) then
     -- Make sure we're clipping past the "/" in from_path
@@ -137,7 +119,7 @@ function M.init_dirbuf(from_path)
 end
 
 function M.get_cursor_path()
-  local err, fname = get_cursor_fname()
+  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     error(err)
   end
@@ -164,7 +146,7 @@ function M.open(path)
   local from_path = normalize_path(vim.fn.expand("%"))
   if from_path == path then
     -- If we're not leaving, we want to keep the cursor on the same line
-    local err, fname = get_cursor_fname()
+    local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
     if err ~= nil then
       api.nvim_err_writeln("Error placing cursor: " .. err)
       return
@@ -191,7 +173,7 @@ function M.enter(cmd)
     return
   end
 
-  local err, fname = get_cursor_fname()
+  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -278,7 +260,7 @@ local function do_plan(plan)
 
   -- Leave cursor on the same file
   local fname
-  err, fname = get_cursor_fname()
+  err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -317,7 +299,7 @@ function M.sync(opt)
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local lines = api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)
   local changes
-  err, changes = planner.build_changes(dir, vim.b.dirbuf, lines, { hash_first = config.get("hash_first") })
+  err, changes = planner.build_changes(dir, vim.b.dirbuf, lines)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return
@@ -347,7 +329,7 @@ function M.toggle_hide()
 
   vim.b.dirbuf_show_hidden = not vim.b.dirbuf_show_hidden
   -- Leave cursor on the same file
-  local err, fname = get_cursor_fname()
+  local err, _, fname, _ = buffer.parse_line(api.nvim_get_current_line())
   if err ~= nil then
     api.nvim_err_writeln(err)
     return

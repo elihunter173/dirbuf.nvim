@@ -14,13 +14,12 @@ describe("update", function()
 
   it("illegal", function()
     local errors = config.update({
-      hash_first = 1,
       hash_padding = -1,
       show_hidden = "foo",
       sort_order = {},
       unknown = true,
     })
-    assert.equal(5, #errors)
+    assert.equal(4, #errors)
   end)
 
   it("set then unset", function()

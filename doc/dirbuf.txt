@@ -163,20 +163,6 @@ OPTIONS                                                         *dirbuf-options*
                 Disables `:write` in directory buffers, forcing users to
                 explicitly invoke `:DirbufSync`.
 
-DEPRECATED OPTIONS
-
-|hash_first| (default: `true`)
-    Whether a file's hash should appear before its name within the lines of a
-    directory buffer.
-
-    If `true`, then lines in a directory buffer will look similiar to this: >
-        #deadbeef   file
-        #deadbee5   directory/
-<
-    If `false`, they will look similiar to this: >
-        file         #deadbeef
-        directory/   #deadbee5
-
 ==============================================================================
 FAQ                                                                 *dirbuf-faq*
 
