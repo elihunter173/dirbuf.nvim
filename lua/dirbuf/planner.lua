@@ -64,8 +64,11 @@ function M.build_changes(dir, fs_entries, lines, parse_opts)
       table.insert(new_files, dst_fs_entry)
     else
       local current_fs_entry = fs_entries[hash]
+      if current_fs_entry == nil then
+        return string.format("Line %d: Unrecognized hash '#%s'", lnum, hash)
+      end
       if current_fs_entry.ftype ~= dst_fs_entry.ftype then
-        return string.format("line %d: cannot change %s -> %s", lnum, current_fs_entry.ftype, dst_fs_entry.ftype)
+        return string.format("Line %d: Cannot change %s -> %s", lnum, current_fs_entry.ftype, dst_fs_entry.ftype)
       end
 
       if current_fs_entry.fname == dst_fs_entry.fname then

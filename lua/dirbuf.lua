@@ -53,15 +53,9 @@ local function fill_dirbuf(on_fname)
     return err
   end
 
-  -- Before we set lines, we set undolevels to -1 so we delete the history when
-  -- we set the lines. This prevents people going back to now-invalid hashes
-  -- and potentially messing up their directory on accident
   local hash_first = config.get("hash_first")
   local buf_lines, max_len, fname_line = buffer.write_fs_entries(fs_entries, { hash_first = hash_first }, on_fname)
-  local undolevels = vim.bo.undolevels
-  vim.bo.undolevels = -1
   api.nvim_buf_set_lines(CURRENT_BUFFER, 0, -1, true, buf_lines)
-  vim.bo.undolevels = undolevels
   vim.b.dirbuf = fs_entries
 
   if hash_first then
@@ -228,8 +222,8 @@ function M.quit()
 end
 
 -- Ensure that the directory has not changed since our last snapshot
-local function check_dirbuf(buf)
-  local dir = api.nvim_buf_get_name(buf)
+local function check_dirbuf()
+  local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local err, current_fs_entries = buffer.get_fs_entries(dir, vim.b.dirbuf_show_hidden)
   if err ~= nil then
     return "Error while checking: " .. err
@@ -308,7 +302,7 @@ function M.sync(opt)
     return
   end
 
-  local err = check_dirbuf(CURRENT_BUFFER)
+  local err = check_dirbuf()
   if err ~= nil then
     api.nvim_err_writeln("Cannot save dirbuf: " .. err)
     return

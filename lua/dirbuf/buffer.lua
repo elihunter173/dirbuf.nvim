@@ -2,6 +2,7 @@ local uv = vim.loop
 
 local config = require("dirbuf.config")
 local fs = require("dirbuf.fs")
+local index = require("dirbuf.index")
 local FSEntry = fs.FSEntry
 
 local M = {}
@@ -117,7 +118,7 @@ local function parse_fname(chars)
   end
 end
 
-local function parse_hash(chars)
+local function parse_id(chars)
   local c = chars()
   if c == nil then
     -- Ended line before hash
@@ -137,7 +138,7 @@ local function parse_hash(chars)
       table.insert(string_builder, c)
     end
   end
-  return nil, tonumber(table.concat(string_builder), 16)
+  return nil, table.concat(string_builder)
 end
 
 -- The language of valid dirbuf lines is regular, so normally I would use
@@ -151,7 +152,7 @@ function M.parse_line(line, opts)
   if opts.hash_first then
     -- We throw away the error because if there's an error in parsing the hash,
     -- we treat the whole thing as an fname
-    local _, hash = parse_hash(chars)
+    local _, hash = parse_id(chars)
     if hash == nil or chars() ~= "\t" then
       hash = nil
       chars = line:gmatch(".")
@@ -176,7 +177,7 @@ function M.parse_line(line, opts)
     end
 
     local hash
-    err, hash = parse_hash(chars)
+    err, hash = parse_id(chars)
     if err ~= nil then
       return err
     end
@@ -201,9 +202,18 @@ function M.display_fs_entry(fs_entry)
 end
 
 function M.write_fs_entries(fs_entries, opts, track_fname)
+  local ir = {}
+  for id, fs_entry in pairs(fs_entries) do
+    table.insert(ir, { id, fs_entry })
+  end
+  local comp = config.get("sort_order")
+  table.sort(ir, function(l, r)
+    return comp(l[2], r[2])
+  end)
+
   local fname_line = nil
-  for lnum, fs_entry in ipairs(fs_entries) do
-    if fs_entry.fname == track_fname then
+  for lnum, id_fs_entry in ipairs(ir) do
+    if id_fs_entry[2].fname == track_fname then
       fname_line = lnum
       break
     end
@@ -211,16 +221,16 @@ function M.write_fs_entries(fs_entries, opts, track_fname)
 
   local buf_lines = {}
   local max_len = 0
-  for idx, fs_entry in ipairs(fs_entries) do
-    local hash = string.format("%08x", idx)
-    local display = M.display_fs_entry(fs_entry)
+  for _, id_fs_entry in ipairs(ir) do
+    local id = id_fs_entry[1]
+    local display = M.display_fs_entry(id_fs_entry[2])
     if #display > max_len then
       max_len = #display
     end
     if opts.hash_first then
-      table.insert(buf_lines, "#" .. hash .. "\t" .. display)
+      table.insert(buf_lines, "#" .. id .. "\t" .. display)
     else
-      table.insert(buf_lines, display .. "\t#" .. hash)
+      table.insert(buf_lines, display .. "\t#" .. id)
     end
   end
 
@@ -240,11 +250,22 @@ function M.get_fs_entries(dir, show_hidden)
     if fname == nil then
       break
     end
-    if show_hidden or not fs.is_hidden(fname) then
-      table.insert(fs_entries, FSEntry.new(fname, dir, ftype))
+    if not show_hidden and fs.is_hidden(fname) then
+      goto continue
     end
+
+    local fs_entry = FSEntry.new(fname, dir, ftype)
+    local id = index.path_ids[fs_entry.path]
+    if id == nil then
+      table.insert(index.fs_entries, fs_entry)
+      id = #index.fs_entries
+      index.path_ids[fs_entry.path] = id
+    end
+    local hash = string.format("%08x", id)
+    fs_entries[hash] = fs_entry
+
+    ::continue::
   end
-  table.sort(fs_entries, config.get("sort_order"))
 
   return nil, fs_entries
 end
