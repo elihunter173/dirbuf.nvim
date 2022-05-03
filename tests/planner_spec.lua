@@ -1,8 +1,21 @@
+local buffer = require("dirbuf.buffer")
 local fs = require("dirbuf.fs")
 local planner = require("dirbuf.planner")
 
-local function entry(fname, ftype)
-  return fs.FSEntry.new(fname, "", ftype or "file")
+local function mkplan(before, after)
+  local fake_fs = {}
+  local before_fs_entries = {}
+  for _, line in ipairs(before) do
+    local err, hash, fname, ftype = buffer.parse_line(line, { hash_first = true })
+    assert(err == nil, err)
+    fake_fs["/" .. fname] = fname
+    before_fs_entries[hash] = fs.FSEntry.new(fname, "/", ftype)
+  end
+
+  local err, changes = planner.build_changes("/", before_fs_entries, after, { hash_first = true })
+  assert(err == nil, err)
+  local plan = planner.determine_plan(changes)
+  return fake_fs, plan
 end
 
 local function apply_plan(fake_fs, plan)
@@ -32,171 +45,122 @@ end
 
 describe("determine_plan", function()
   it("no changes", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = { current_fs_entry = entry("a"), stays = true, progress = "unhandled" },
-        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
-      },
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000a	a]],
+      [[#0000000b	b]],
     })
-
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b" }
     apply_plan(fake_fs, plan)
     assert.same({ ["/a"] = "a", ["/b"] = "b" }, fake_fs)
     assert.same(0, #plan)
   end)
 
-  it("move one", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = {
-          entry("c"),
-          current_fs_entry = entry("a"),
-          stays = false,
-          progress = "unhandled",
-        },
-        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
-      },
+  it("reordering", function()
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000b	b]],
+      [[#0000000a	a]],
     })
+    apply_plan(fake_fs, plan)
+    assert.same({ ["/a"] = "a", ["/b"] = "b" }, fake_fs)
+    assert.same(0, #plan)
+  end)
 
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b" }
+  it("rename", function()
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000a	c]],
+      [[#0000000b	b]],
+    })
     apply_plan(fake_fs, plan)
     assert.same({ ["/c"] = "a", ["/b"] = "b" }, fake_fs)
     assert.same(1, #plan)
   end)
 
-  it("delete one", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = { current_fs_entry = entry("a"), stays = false, progress = "unhandled" },
-        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
-      },
+  it("delete", function()
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000b	b]],
     })
-
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b" }
     apply_plan(fake_fs, plan)
     assert.same({ ["/b"] = "b" }, fake_fs)
     assert.same(1, #plan)
   end)
 
-  it("create one", function()
-    local plan = planner.determine_plan({
-      new_files = { entry("a") },
-      change_map = {
-        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
-      },
+  it("create", function()
+    local fake_fs, plan = mkplan({
+      [[#0000000b	b]],
+    }, {
+      [[a]],
+      [[#0000000b	b]],
     })
-
-    local fake_fs = { ["/b"] = "b" }
     apply_plan(fake_fs, plan)
     assert.same({ ["/a"] = "", ["/b"] = "b" }, fake_fs)
     assert.same(1, #plan)
   end)
 
-  it("copy one", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = {
-          entry("c"),
-          current_fs_entry = entry("a"),
-          stays = true,
-          progress = "unhandled",
-        },
-        b = { current_fs_entry = entry("b"), stays = true, progress = "unhandled" },
-      },
+  it("copy", function()
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000a	a]],
+      [[#0000000a	c]],
+      [[#0000000b	b]],
     })
-
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b" }
     apply_plan(fake_fs, plan)
     assert.same({ ["/a"] = "a", ["/b"] = "b", ["/c"] = "a" }, fake_fs)
     assert.same(1, #plan)
   end)
 
   it("dependent rename", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = {
-          entry("b"),
-          current_fs_entry = entry("a"),
-          stays = false,
-          progress = "unhandled",
-        },
-        b = {
-          entry("c"),
-          current_fs_entry = entry("b"),
-          stays = false,
-          progress = "unhandled",
-        },
-      },
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000a	b]],
+      [[#0000000b	c]],
     })
-
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b" }
     apply_plan(fake_fs, plan)
     assert.same({ ["/b"] = "a", ["/c"] = "b" }, fake_fs)
     assert.same(2, #plan)
     assert.same(2, opcount(plan, "move"))
   end)
 
-  it("simple cycle", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = {
-          entry("b"),
-          current_fs_entry = entry("a"),
-          stays = false,
-          progress = "unhandled",
-        },
-        b = {
-          entry("c"),
-          current_fs_entry = entry("b"),
-          stays = false,
-          progress = "unhandled",
-        },
-        c = {
-          entry("a"),
-          current_fs_entry = entry("c"),
-          stays = false,
-          progress = "unhandled",
-        },
-      },
+  it("swap", function()
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000a	b]],
+      [[#0000000b	a]],
     })
-
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b", ["/c"] = "c" }
     apply_plan(fake_fs, plan)
-    assert.same({ ["/a"] = "c", ["/b"] = "a", ["/c"] = "b" }, fake_fs)
-    assert.same(4, #plan)
-    assert.same(4, opcount(plan, "move"))
+    assert.same({ ["/a"] = "b", ["/b"] = "a" }, fake_fs)
+    assert.same(3, #plan)
+    assert.same(3, opcount(plan, "move"))
   end)
 
   -- FIXME: We skip the "efficient breakpoint" efficiency tests because Dirbuf
   -- sometimes misses efficient breakpoints. Dirbuf's solutions are always
   -- correct but not always optimal.
   it("swap with efficient breakpoint", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = {
-          entry("b"),
-          current_fs_entry = entry("a"),
-          stays = false,
-          progress = "unhandled",
-        },
-        b = {
-          entry("a"),
-          entry("c"),
-          current_fs_entry = entry("b"),
-          stays = false,
-          progress = "unhandled",
-        },
-      },
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+    }, {
+      [[#0000000a	b]],
+      [[#0000000b	a]],
+      [[#0000000b	c]],
     })
-
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b" }
     apply_plan(fake_fs, plan)
     assert.same({ ["/a"] = "b", ["/b"] = "a", ["/c"] = "b" }, fake_fs)
     -- assert.same(3, #plan)
@@ -204,32 +168,16 @@ describe("determine_plan", function()
   end)
 
   it("cycle with efficient breakpoint", function()
-    local plan = planner.determine_plan({
-      new_files = {},
-      change_map = {
-        a = {
-          entry("b"),
-          current_fs_entry = entry("a"),
-          stays = false,
-          progress = "unhandled",
-        },
-        b = {
-          entry("c"),
-          entry("d"),
-          current_fs_entry = entry("b"),
-          stays = false,
-          progress = "unhandled",
-        },
-        c = {
-          entry("a"),
-          current_fs_entry = entry("c"),
-          stays = false,
-          progress = "unhandled",
-        },
-      },
+    local fake_fs, plan = mkplan({
+      [[#0000000a	a]],
+      [[#0000000b	b]],
+      [[#0000000c	c]],
+    }, {
+      [[#0000000a	b]],
+      [[#0000000b	c]],
+      [[#0000000b	d]],
+      [[#0000000c	a]],
     })
-
-    local fake_fs = { ["/a"] = "a", ["/b"] = "b", ["/c"] = "c" }
     apply_plan(fake_fs, plan)
     assert.same({ ["/a"] = "c", ["/b"] = "a", ["/c"] = "b", ["/d"] = "b" }, fake_fs)
     -- assert.same(4, #plan)
