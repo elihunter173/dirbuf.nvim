@@ -22,7 +22,7 @@ https://user-images.githubusercontent.com/42009212/162110083-9fd3701f-8ffb-4cf7-
 
 ## Installation
 
-Requires [Neovim 0.5](https://github.com/neovim/neovim/releases/tag/v0.5.0) or
+Requires [Neovim 0.6](https://github.com/neovim/neovim/releases/tag/v0.6.0) or
 higher.
 
 * [vim-plug]: `Plug "elihunter173/dirbuf.nvim"`

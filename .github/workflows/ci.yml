@@ -14,7 +14,7 @@ jobs:
   testing:
     strategy:
       matrix:
-        nvim-version: ["v0.5.0", "v0.5.1", "v0.6.0", "v0.6.1", "v0.7.0", "nightly"]
+        nvim-version: ["v0.6.0", "v0.6.1", "v0.7.0", "nightly"]
       # If one versions fails, still run all the other versions
       fail-fast: false
     runs-on: ubuntu-20.04
