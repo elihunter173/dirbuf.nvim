@@ -31,7 +31,7 @@ describe("update", function()
   end)
 
   it("unknown option", function()
-    assert.has.errors(function()
+    assert.errors(function()
       config.get("unknown")
     end)
   end)
