@@ -4,5 +4,5 @@ if !isdirectory('plenary.nvim')
 endif
 set runtimepath+=plenary.nvim,.
 runtime plugin/plenary.vim
-runtime plugin/dirbuf.vim
+try | runtime plugin/dirbuf.vim | catch | cquit! 173 | endtry
 command Test PlenaryBustedDirectory tests/ {minimal_init = 'tests/test_init.vim'}
