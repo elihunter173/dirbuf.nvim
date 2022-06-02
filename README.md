@@ -41,23 +41,6 @@ require("nvim-tree").setup {
 }
 ```
 
-If you notice `nvim /some/directory` opening Netrw instead of Dirbuf, you can
-disable Netrw by adding the following to your `init.vim` or `init.lua`. This
-issue only appears with certain package managers and affects other file manager
-plugins as well. I am searching for a more elegant solution.
-
-```vim
-" init.vim
-let g:loaded_netrwPlugin = 1
-let g:loaded_netrw = 1
-```
-
-```lua
--- init.lua
-vim.g.loaded_netrwPlugin = 1
-vim.g.loaded_netrw = 1
-```
-
 ## Usage
 
 Run the command `:Dirbuf` to open a directory buffer for your current
