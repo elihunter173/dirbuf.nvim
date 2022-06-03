@@ -70,7 +70,7 @@ local function fill_dirbuf(on_fname)
   return nil
 end
 
-function M.init_dirbuf(from_path)
+function M.init_dirbuf(history, history_index, update_history, from_path)
   -- Preserve altbuf
   local altbuf = vim.fn.bufnr("#")
 
@@ -94,6 +94,25 @@ function M.init_dirbuf(from_path)
       cursor_fname = from_path:sub(fname_start)
     end
   end
+
+  -- Update history
+  if history == nil then
+    history = {}
+    history_index = 0
+  end
+  if update_history then
+    -- Clear old history
+    while #history > history_index do
+      table.remove(history)
+    end
+    -- We don't add to history if we're just refreshing the dirbuf
+    if path ~= history[history_index] then
+      table.insert(history, path)
+      history_index = history_index + 1
+    end
+  end
+  vim.b.dirbuf_history = history
+  vim.b.dirbuf_history_index = history_index
 
   -- Set dirbuf options
   vim.bo.filetype = "dirbuf"
@@ -159,8 +178,9 @@ function M.open(path)
     -- If we're leaving a dirbuf, keep our alternate buffer
     keepalt = "keepalt"
   end
+  local history, history_index = vim.b.dirbuf_history, vim.b.dirbuf_history_index
   vim.cmd(keepalt .. " noautocmd edit " .. vim.fn.fnameescape(path))
-  M.init_dirbuf(from_path)
+  M.init_dirbuf(history, history_index, true, from_path)
 end
 
 function M.enter(cmd)
@@ -189,10 +209,22 @@ function M.enter(cmd)
   if fs.is_directory(path) then
     noautocmd = "noautocmd"
   end
+  local history, history_index = vim.b.dirbuf_history, vim.b.dirbuf_history_index
   vim.cmd("keepalt " .. noautocmd .. " " .. cmd .. " " .. vim.fn.fnameescape(path))
   if fs.is_directory(path) then
-    M.init_dirbuf()
+    M.init_dirbuf(history, history_index, true)
   end
+end
+
+function M.jump_history(n)
+  if vim.bo.filetype ~= "dirbuf" then
+    api.nvim_err_writeln("Operation only supports 'filetype=dirbuf'")
+    return
+  end
+  local history, history_index = vim.b.dirbuf_history, vim.b.dirbuf_history_index
+  local next_index = math.max(1, math.min(#history, history_index + n))
+  vim.cmd("keepalt noautocmd edit " .. vim.fn.fnameescape(history[next_index]))
+  M.init_dirbuf(history, next_index, false, history[history_index])
 end
 
 function M.quit()

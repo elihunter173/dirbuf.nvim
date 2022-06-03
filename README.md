@@ -7,11 +7,12 @@ text. Inspired by [vim-dirvish] and [vidir].
 
 * *Intuitive:* Create, copy, delete, and rename files, directories, and more by
   editing their lines in the directory buffer. Buffer names are automatically
-  updated to reflect these changes.
+  updated to reflect changes.
 * *Minimal:* Works out of the box with no configuration. Default mappings
   easily changed.
-* *Unobtrusive:* Preserves alternate buffers, letting you switch between
-  files with `Ctrl-^` (`Ctrl-6`).
+* *Unobtrusive:* Preserves alternate buffers and navigation history. Switch
+  between files with `Ctrl-^` (`Ctrl-6`) and jump around your navigation history
+  with custom `<Plug>` mappings.
 * *Safe:* Does not modify the filesystem until you save the buffer. Optionally
   request confirmation and dry-run saving.
 * *Reliable:* Resolves inter-dependencies in batch renames, including cycles.

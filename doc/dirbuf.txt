@@ -56,6 +56,12 @@ Buffer-local (filetype=dirbuf) ~
     <Plug>(dirbuf_toggle_hide)
     gh              Toggles whether hidden files (i.e. dot files) are
                     displayed.
+    <Plug>(dirbuf_history_forward)
+                    Moves forward [count] times in the directory buffer
+                    history.
+    <Plug>(dirbuf_history_backward)
+                    Moves backward [count] times in the directory buffer
+                    history.
 
 ==============================================================================
 COMMANDS                                                       *dirbuf-commands*
@@ -90,7 +96,7 @@ COMMANDS                                                       *dirbuf-commands*
 FUNCTIONS                                                     *dirbuf-functions*
 
 dirbuf.setup({opts})                                            *dirbuf.setup()*
-    Overwrites the default options with the options in the `opts` table.
+    Overwrites the default options with the options in the {opts} table.
 
     Example with all the default options: >
         require("dirbuf").setup {

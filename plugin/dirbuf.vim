@@ -12,12 +12,11 @@ function! s:DirbufSyncOptions(arg_lead, cmd_line, cursor_pos)
 endfunction
 
 " This (dirbuf_up) mapping was taken from vim-dirvish
-noremap <silent> <unique> <Plug>(dirbuf_up)
-      \ <cmd>execute 'Dirbuf %:p'.repeat(':h', v:count1 + isdirectory(expand('%')))<cr>
-noremap <silent> <unique> <Plug>(dirbuf_enter)
-      \ <cmd>execute 'lua require"dirbuf".enter()'<cr>
-noremap <silent> <unique> <Plug>(dirbuf_toggle_hide)
-      \ <cmd>execute 'lua require"dirbuf".toggle_hide()'<cr>
+noremap <unique> <Plug>(dirbuf_up) <cmd>execute 'Dirbuf %:p'.repeat(':h', v:count1 + isdirectory(expand('%')))<cr>
+noremap <unique> <Plug>(dirbuf_enter) <cmd>execute 'lua require"dirbuf".enter()'<cr>
+noremap <unique> <Plug>(dirbuf_toggle_hide) <cmd>execute 'lua require"dirbuf".toggle_hide()'<cr>
+noremap <unique> <Plug>(dirbuf_history_forward) <cmd>execute 'lua require"dirbuf".jump_history('v:count1')'<cr>
+noremap <unique> <Plug>(dirbuf_history_backward) <cmd>execute 'lua require"dirbuf".jump_history(-'v:count1')'<cr>
 
 if mapcheck('-', 'n') ==# '' && !hasmapto('<Plug>(dirbuf_up)', 'n')
   nmap - <Plug>(dirbuf_up)
@@ -29,7 +28,7 @@ augroup dirbuf
   autocmd VimEnter * if exists('#FileExplorer') | execute 'autocmd! FileExplorer *' | endif
   " Makes editing a directory open a dirbuf. We always re-init the dirbuf
   autocmd BufEnter * if isdirectory(expand('%')) && !&modified
-        \ | execute 'lua require"dirbuf".init_dirbuf()'
+        \ | execute 'lua require"dirbuf".init_dirbuf(vim.b.dirbuf_history, vim.b.dirbuf_history_index, true)'
         \ | endif
 augroup END
 
