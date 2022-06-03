@@ -62,6 +62,11 @@ local function ftype_to_suffix(ftype)
   end
 end
 
+-- escaped char -> unescaped
+-- We treat "\\" separately to avoid confusion where we duplicate backslashes
+-- when trying to programmatically escape characters
+local ESCAPE_CHARS = { n = "\n", t = "\t" }
+
 -- Returns err, fname, ftype
 local function parse_fname(chars)
   local string_builder = {}
@@ -90,10 +95,10 @@ local function parse_fname(chars)
       -- Convert escape sequence
       if next_c == "\\" then
         last_suffix = nil
-        table.insert(string_builder, next_c)
-      elseif next_c == "t" then
+        table.insert(string_builder, "\\")
+      elseif ESCAPE_CHARS[next_c] ~= nil then
         last_suffix = nil
-        table.insert(string_builder, "\t")
+        table.insert(string_builder, ESCAPE_CHARS[next_c])
       else
         return string.format("Invalid escape sequence %s", vim.inspect(c .. next_c))
       end
@@ -173,7 +178,10 @@ function M.parse_line(line)
 end
 
 function M.display_fs_entry(fs_entry)
-  local escaped = fs_entry.fname:gsub("\\", "\\\\"):gsub("\t", "\\t")
+  local escaped = fs_entry.fname:gsub("\\", "\\\\")
+  for escape_char, unescaped in pairs(ESCAPE_CHARS) do
+    escaped = escaped:gsub(unescaped, "\\" .. escape_char)
+  end
   return escaped .. ftype_to_suffix(fs_entry.ftype)
 end
 

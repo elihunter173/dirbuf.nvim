@@ -129,7 +129,7 @@ describe("parse_line", function()
   end)
 
   it("invalid escape sequence", function()
-    expect_parse([[#0000000a	\a]], {
+    expect_parse([[#0000000a	\y]], {
       err = true,
       hash = nil,
       fname = nil,

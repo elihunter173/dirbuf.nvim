@@ -12,7 +12,7 @@
 "
 " The suffixes are taken from `ls --classify` and zsh's tab completion.
 function! s:SetMatch(group_name, suffix, suffix_len)
-  execute 'syntax match 'a:group_name.' /\([^\\\t]\|\\[\\t]\)\+'.a:suffix.'$/me=e-'.a:suffix_len
+  execute 'syntax match 'a:group_name.' /\([^\\\t]\|\\[\\nt]\)\+'.a:suffix.'$/me=e-'.a:suffix_len
 endfunction
 call s:SetMatch('DirbufFile', '', 0)
 call s:SetMatch('DirbufDirectory', '[/\\]', 1)
@@ -28,7 +28,7 @@ syntax match DirbufHash /^#\x\{8}\t/ms=s-1
 " /^\(\(The_Regular_Expression\)\@!.\)*$/
 " Finds every except for the regular expression
 " See: https://vim.fandom.com/wiki/Search_for_lines_not_containing_pattern_and_other_helpful_searches#Searching_with_.2F
-syntax match DirbufMalformedLine /^\(\(\_^\(#\x\{8}\t\)\?\([^\\\t]\|\\[\\t]\)\+\\\?\_$\)\@!.\)*$/
+syntax match DirbufMalformedLine /^\(\(\_^\(#\x\{8}\t\)\?\([^\\\t]\|\\[\\nt]\)\+\\\?\_$\)\@!.\)*$/
 
 " Highlight each object according to its color in by ls --color=always. This
 " fallback system was taken and modified from nvim-tree.lua's colors.lua
