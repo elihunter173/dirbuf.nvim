@@ -10,6 +10,9 @@ local M = {}
 local CURRENT_BUFFER = 0
 local CURRENT_WINDOW = 0
 
+local paths
+local paths_idx = 1
+
 function M.setup(opts)
   local errors = config.update(opts)
   if #errors == 1 then
@@ -156,11 +159,51 @@ local function directify(path)
   end
 end
 
-function M.open(path)
-  if path == "" then
+local function split(s, delimiter)
+  local result = {};
+  for match in (s..delimiter):gmatch("(.-)"..delimiter) do
+    table.insert(result, match);
+  end
+  return result;
+end
+
+function M.next()
+  if paths == nil or paths_idx + 1 > #paths then
+    return
+  end
+  paths_idx = paths_idx + 1
+  M.open(paths[paths_idx])
+end
+
+function M.prev()
+  if paths == nil or paths_idx - 1 < 1 then
+    return
+  end
+  paths_idx = paths_idx - 1
+  M.open(paths[paths_idx])
+end
+
+function M.open(path, reset_paths)
+
+  if reset_paths then
+    paths = nil
+  end
+
+  -- Multiple files (glob)
+  if string.match(path, '\n') then
+    paths = split(path, '\n')
+    paths_idx = 1
+    path = paths[paths_idx]
+  elseif path == "" then
     path = "."
   end
-  path = normalize_path(directify(path))
+  path = normalize_path(path)
+
+  local filename = nil
+  if not fs.is_directory(path) then
+    filename = vim.fn.fnamemodify(path, ':t')
+  end
+  path = directify(path)
 
   local from_path = normalize_path(vim.fn.expand("%"))
   if from_path == path then
@@ -181,6 +224,18 @@ function M.open(path)
   local history, history_index = vim.b.dirbuf_history, vim.b.dirbuf_history_index
   vim.cmd(keepalt .. " noautocmd edit " .. vim.fn.fnameescape(path))
   M.init_dirbuf(history, history_index, true, from_path)
+
+  if filename ~= nil then
+    filename = vim.fn.escape(filename, '^$.*[~]+/-')
+    vim.fn.setreg('/', '^#\\w\\{8\\}\\s' .. filename .. '\\>')
+    vim.api.nvim_exec('silent normal n', _)
+  end
+
+  if paths ~= nil then
+      vim.api.nvim_echo({{'(' .. paths_idx .. '/' .. #paths .. ')'}}, true, {})
+  else
+      vim.api.nvim_echo({{'(1/1)'}}, true, {})
+  end
 end
 
 function M.enter(cmd)
