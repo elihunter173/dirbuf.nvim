@@ -192,6 +192,12 @@ function M.open(path, reset_paths)
   -- Multiple files (glob)
   if string.match(path, '\n') then
     paths = split(path, '\n')
+    if paths == nil then
+      return
+    end
+    for i=1, #paths do
+      paths[i] = normalize_path(paths[i])
+    end
     paths_idx = 1
     path = paths[paths_idx]
   elseif path == "" then
