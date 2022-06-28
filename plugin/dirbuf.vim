@@ -2,7 +2,9 @@ if exists('g:loaded_dirbuf')
   finish
 endif
 
-command! -nargs=? -complete=dir Dirbuf lua require'dirbuf'.open(<q-args>)
+command! -nargs=* -complete=file Dirbuf lua require'dirbuf'.open(vim.fn.glob(<q-args>), true)
+command! DirbufNext lua require'dirbuf'.next()
+command! DirbufPrev lua require'dirbuf'.prev()
 command! DirbufQuit lua require'dirbuf'.quit()
 command! -nargs=? -complete=customlist,s:DirbufSyncOptions DirbufSync lua require'dirbuf'.sync(<q-args>)
 
