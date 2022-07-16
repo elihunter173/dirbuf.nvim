@@ -226,4 +226,42 @@ function M.get_fs_entries(dir, show_hidden)
   return nil, fs_entries
 end
 
+function M.expand_path(path)
+  -- table to store paths that have not yet been fully expanded, this table
+  -- will grow depending on how many expansion groups are in the original path
+  -- argument
+  local unresolved = {path}
+  local i = 1
+
+  -- table to store fully expanded paths
+  local paths = {}
+
+  for _, current in ipairs(unresolved) do
+
+    -- find the start and end of expansion group range
+    local lbracket, rbracket = current:find('{[^}]+}')
+
+    -- fully expanded/resolved current path
+    if lbracket == nil or rbracket == nil then
+      table.insert(paths, current)
+    else
+      -- prefix (before the expansion group)
+      local prefix = current:sub(1, lbracket - 1)
+
+      -- suffix (after the expansion group)
+      local suffix = current:sub(rbracket + 1, #current)
+
+      -- expansion group (what to expand into multiple filenames)
+      local egroup = current:sub(lbracket + 1, rbracket - 1)
+
+      -- each group in the expansion group (ex. {.txt,.c} -> .txt and .c)
+      for expansion in egroup:gmatch("[^,]+") do
+        table.insert(unresolved, prefix .. expansion .. suffix)
+      end
+    end
+    i = i + 1
+  end
+  return paths
+end
+
 return M
