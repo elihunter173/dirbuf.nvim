@@ -179,20 +179,20 @@ end
 --
 -- Returns: list of actions as in fs.plan
 function M.determine_plan(changes)
-    local plan = {}
+  local plan = {}
 
-    for _, change in pairs(changes.change_map) do
-        local extra_action = resolve_change(plan, changes.change_map, change)
-        if extra_action ~= nil then
-            table.insert(plan, extra_action)
-        end
+  for _, change in pairs(changes.change_map) do
+    local extra_action = resolve_change(plan, changes.change_map, change)
+    if extra_action ~= nil then
+      table.insert(plan, extra_action)
     end
+  end
 
-    for _, fs_entry in ipairs(changes.new_files) do
-        table.insert(plan, create(fs_entry))
-    end
+  for _, fs_entry in ipairs(changes.new_files) do
+    table.insert(plan, create(fs_entry))
+  end
 
-    return plan
+  return plan
 end
 
 -- `execute_plan` executes the plan (i.e. sequence of actions) as created by
