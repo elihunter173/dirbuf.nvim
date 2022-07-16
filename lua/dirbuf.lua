@@ -330,8 +330,15 @@ function M.sync(opt)
 
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
   local lines = api.nvim_buf_get_lines(CURRENT_BUFFER, 0, -1, true)
+  local expanded_lines = {}
+  for _, line in ipairs(lines) do
+      local paths = buffer.expand_path(line)
+      for _, path in ipairs(paths) do
+          table.insert(expanded_lines, path)
+      end
+  end
   local changes
-  err, changes = planner.build_changes(dir, vim.b.dirbuf, lines)
+  err, changes = planner.build_changes(dir, vim.b.dirbuf, expanded_lines)
   if err ~= nil then
     api.nvim_err_writeln(err)
     return

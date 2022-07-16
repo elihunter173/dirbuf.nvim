@@ -174,76 +174,25 @@ local function resolve_change(plan, change_map, change)
   return post_resolution_action
 end
 
-local function expand_path(path)
-  -- table to store paths that have not yet been fully expanded, this table
-  -- will grow depending on how many expansion groups are in the original path
-  -- argument
-  local unresolved = {path}
-  local i = 1
-
-  -- table to store fully expanded paths
-  local paths = {}
-
-  while i <= #unresolved do
-    local current = unresolved[i]
-
-    -- find the start and end of expansion group range
-    local istart, iend = current:find('{[^}]+}')
-
-    -- fully expanded/resolved current path
-    if istart == nil or iend == nil then
-      table.insert(paths, current)
-    else
-      -- prefix (before the expansion group)
-      local prefix = current:sub(1, istart - 1)
-
-      -- suffix (after the expansion group)
-      local suffix = current:sub(iend + 1, #current)
-
-      -- expansion group (what to expand into multiple filenames)
-      local egroup = current:sub(istart + 1, iend - 1)
-
-      -- each group in the expansion group (ex. {.txt,.c} -> .txt and .c)
-      for expansion in string.gmatch(egroup, "[^,]+") do
-        table.insert(unresolved, prefix .. expansion .. suffix)
-      end
-    end
-    i = i + 1
-  end
-  return paths
-end
-
 -- `determine_plan` finds the most efficient sequence of actions necessary to
 -- apply the set of validated changes we have `changes`.
 --
 -- Returns: list of actions as in fs.plan
 function M.determine_plan(changes)
-  local plan = {}
+    local plan = {}
 
-  for _, change in pairs(changes.change_map) do
-    local extra_action = resolve_change(plan, changes.change_map, change)
-    if extra_action ~= nil then
-      table.insert(plan, extra_action)
-    end
-  end
-
-  for _, fs_entry in ipairs(changes.new_files) do
-    local fnames = expand_path(fs_entry.fname)
-    local paths = expand_path(fs_entry.path)
-
-    for i=1,#fnames do
-      table.insert(plan, create({
-        fname = fnames[i],
-        ftype = fs_entry.ftype,
-        path = paths[i]
-      }))
+    for _, change in pairs(changes.change_map) do
+        local extra_action = resolve_change(plan, changes.change_map, change)
+        if extra_action ~= nil then
+            table.insert(plan, extra_action)
+        end
     end
 
---     print(vim.inspect(fnames))
---     print(vim.inspect(fs_entry))
-  end
+    for _, fs_entry in ipairs(changes.new_files) do
+        table.insert(plan, create(fs_entry))
+    end
 
-  return plan
+    return plan
 end
 
 -- `execute_plan` executes the plan (i.e. sequence of actions) as created by
