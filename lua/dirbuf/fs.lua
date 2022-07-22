@@ -1,6 +1,8 @@
 local api = vim.api
 local uv = vim.loop
 
+local config = require("dirbuf.config")
+
 local M = {}
 
 M.path_separator = package.config:sub(1, 1)
@@ -59,6 +61,28 @@ function FSEntry.temp(ftype)
     path = temppath,
     ftype = ftype,
   }
+end
+
+function M.get_fs_entries(dir, show_hidden)
+  local fs_entries = {}
+
+  local handle, err, _ = uv.fs_scandir(dir)
+  if handle == nil then
+    return err
+  end
+
+  while true do
+    local fname, ftype = uv.fs_scandir_next(handle)
+    if fname == nil then
+      break
+    end
+    if show_hidden or not M.is_hidden(fname) then
+      table.insert(fs_entries, FSEntry.new(fname, dir, ftype))
+    end
+  end
+  table.sort(fs_entries, config.get("sort_order"))
+
+  return nil, fs_entries
 end
 
 M.plan = {}

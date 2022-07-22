@@ -48,7 +48,7 @@ end
 -- Returns: err
 local function fill_dirbuf(on_fname)
   local dir = api.nvim_buf_get_name(CURRENT_BUFFER)
-  local err, fs_entries = buffer.get_fs_entries(dir, vim.b.dirbuf_show_hidden)
+  local err, fs_entries = fs.get_fs_entries(dir, vim.b.dirbuf_show_hidden)
   if err ~= nil then
     return err
   end
@@ -244,7 +244,7 @@ end
 -- Ensure that the directory has not changed since our last snapshot
 local function check_dirbuf(buf)
   local dir = api.nvim_buf_get_name(buf)
-  local err, current_fs_entries = buffer.get_fs_entries(dir, vim.b.dirbuf_show_hidden)
+  local err, current_fs_entries = fs.get_fs_entries(dir, vim.b.dirbuf_show_hidden)
   if err ~= nil then
     return "Error while checking: " .. err
   end

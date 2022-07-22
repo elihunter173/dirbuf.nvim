@@ -1,4 +1,4 @@
-all: test lint
+all: lint test
 
 test:
 	nvim --headless --clean -u tests/test_init.vim +Test
