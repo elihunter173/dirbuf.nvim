@@ -6,7 +6,7 @@ Support for nvim-web-devicons
 local M = {}
 
 function M.has_devicons()
-  local ok, has = pcall(require, "nvim-web-devicons")
+  local ok, _ = pcall(require, "nvim-web-devicons")
   return ok
 end
 
