@@ -51,6 +51,14 @@ local CONFIG_SPEC = {
       end
     end,
   },
+  devicons = {
+    default = false,
+    check = function(val)
+      if type(val) ~= "boolean" then
+        return "must be boolean, received " .. type(val)
+      end
+    end,
+  },
 }
 
 local user_config = {}
