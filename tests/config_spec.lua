@@ -6,10 +6,14 @@ describe("update", function()
       hash_padding = 3,
       show_hidden = false,
       sort_order = "directories_first",
+      file_handlers = {
+        wav = "!afplay",
+      },
     })
     assert.equal(0, #errors)
     assert.equal(3, config.get("hash_padding"))
     assert.equal(false, config.get("show_hidden"))
+    assert.is_same({ wav = "!afplay" }, config.get("file_handlers"))
   end)
 
   it("illegal", function()
