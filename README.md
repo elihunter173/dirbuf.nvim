@@ -66,6 +66,7 @@ require("dirbuf").setup {
     show_hidden = true,
     sort_order = "default",
     write_cmd = "DirbufSync",
+    file_handlers = {},
 }
 ```
 

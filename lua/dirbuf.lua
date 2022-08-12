@@ -22,6 +22,18 @@ function M.setup(opts)
   end
 end
 
+-- takes a path which could be a file, determines if the extension of the file
+-- has been configured a handler in vim.b.dirbuf_file_handlers and returns the
+-- handler if so, nil if no handler has been configured
+local function get_file_handler(path)
+  local extension = path:match("^.+%.(.+)$"):lower()
+  local handler_config = config.get("file_handlers")
+  if handler_config[extension] ~= nil then
+    return tostring(handler_config[extension])
+  end
+  return nil
+end
+
 -- `normalize_path` takes a `path` entered by the user, potentially containing
 -- duplicate path separators, "..", or trailing path separators, and ensures
 -- that all duplicate path separators are removed, there is no trailing path
@@ -180,13 +192,6 @@ function M.open(path)
   end
   local history, history_index = vim.b.dirbuf_history, vim.b.dirbuf_history_index
   vim.cmd(keepalt .. " noautocmd edit " .. vim.fn.fnameescape(path))
-  -- Sanity check: If we're not in the file we just edited, something went
-  -- wrong. This can happen if someone has `:set nohidden confirm`,
-  -- accidentally opens dirbuf, and hits escape at the save prompt. The edit
-  -- "fails" without raising an error
-  if vim.fn.bufname() ~= path then
-    return
-  end
   M.init_dirbuf(history, history_index, true, from_path)
 end
 
@@ -215,6 +220,11 @@ function M.enter(cmd)
   local noautocmd = ""
   if fs.is_directory(path) then
     noautocmd = "noautocmd"
+  else
+    local handler = get_file_handler(path)
+    if handler ~= nil then
+      cmd = handler
+    end
   end
   local history, history_index = vim.b.dirbuf_history, vim.b.dirbuf_history_index
   vim.cmd("keepalt " .. noautocmd .. " " .. cmd .. " " .. vim.fn.fnameescape(path))
