@@ -184,7 +184,7 @@ function M.open(path)
   -- wrong. This can happen if someone has `:set nohidden confirm`,
   -- accidentally opens dirbuf, and hits escape at the save prompt. The edit
   -- "fails" without raising an error
-  if vim.fn.bufname() ~= path then
+  if api.nvim_buf_get_name(CURRENT_BUFFER) ~= path then
     return
   end
   M.init_dirbuf(history, history_index, true, from_path)
