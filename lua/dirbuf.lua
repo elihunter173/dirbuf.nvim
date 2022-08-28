@@ -158,7 +158,7 @@ end
 
 function M.open(path)
   if path == "" then
-    path = "."
+    path = api.nvim_buf_get_name(CURRENT_BUFFER)
   end
   path = normalize_path(directify(path))
 

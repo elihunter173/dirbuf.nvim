@@ -43,9 +43,9 @@ require("nvim-tree").setup {
 
 ## Usage
 
-Run the command `:Dirbuf` to open a directory buffer for your current
-directory. Press `-` in any buffer to open a directory buffer for its parent.
-Editing a directory will also open up a directory buffer, overriding Netrw.
+Run the command `:Dirbuf` to open a directory buffer. Press `-` in any buffer
+to open a directory buffer for its parent. Editing a directory will also open
+up a directory buffer, overriding Netrw.
 
 Inside a directory buffer, there are the following keybindings:
 * `<CR>`: Open the file or directory at the cursor.
