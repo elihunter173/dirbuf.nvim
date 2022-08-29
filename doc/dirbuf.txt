@@ -165,6 +165,10 @@ OPTIONS                                                         *dirbuf-options*
                 Disables `:write` in directory buffers, forcing users to
                 explicitly invoke `:DirbufSync`.
 
+|devicons| (default: `false`)
+    Enable support for devicons through:
+    `https://github.com/kyazdani42/nvim-web-devicons`. Set to true to enable.
+
 ==============================================================================
 FAQ                                                                 *dirbuf-faq*
 

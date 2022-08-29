@@ -66,11 +66,27 @@ require("dirbuf").setup {
     show_hidden = true,
     sort_order = "default",
     write_cmd = "DirbufSync",
+    devicons = false,
 }
 ```
 
 Read the [documentation](/doc/dirbuf.txt) for more information (`:help
 dirbuf-options`).
+
+### Devicons
+Devicon support requires [nvim-web-devicons](https://github.com/kyazdani42/nvim-web-devicons).
+If not already installed, require it with your package manager if supported:
+
+```lua
+use {"elihunter173/dirbuf.nvim", requires = "kyazdani42/nvim-web-devicons"}
+```
+
+Otherwise make sure it is loaded before dirbuf:
+
+```vim
+Plug "kyazdani42/nvim-web-devicons"
+Plug "elihunter173/dirbuf.nvim"
+```
 
 ## Development
 

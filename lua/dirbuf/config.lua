@@ -51,6 +51,17 @@ local CONFIG_SPEC = {
       end
     end,
   },
+  devicons = {
+    default = false,
+    check = function(val)
+      if require('dirbuf.devicons').has_devicons() ~= true and val == true then
+        return "nvim-web-devicons not installed"
+      end
+      if type(val) ~= "boolean" then
+        return "must be boolean, received " .. type(val)
+      end
+    end,
+  },
 }
 
 local user_config = {}

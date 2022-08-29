@@ -1,4 +1,6 @@
 local fs = require("dirbuf.fs")
+local devicons = require("dirbuf.devicons.init")
+local config = require("dirbuf.config")
 
 local M = {}
 
@@ -159,6 +161,20 @@ function M.parse_line(line)
     chars = line:gmatch(".")
   end
 
+  -- We need to make sure to never parse the devicon and the proceeding space
+  -- Any icon will not be a character
+  -- chars() will iterate until the file name at this point
+  -- Ignore all bytes and the first space
+  if config.get("devicons") then
+    if chars() ~= nil then
+      for char in chars do
+        if char == " " then
+          break
+        end
+      end
+    end
+  end
+
   local err, fname, ftype = parse_fname(chars)
   if err ~= nil then
     return err
@@ -178,7 +194,11 @@ function M.display_fs_entry(fs_entry)
   for escape_char, unescaped in pairs(ESCAPE_CHARS) do
     escaped = escaped:gsub(unescaped, "\\" .. escape_char)
   end
-  return escaped .. ftype_to_suffix(fs_entry.ftype)
+  if config.get("devicons") then
+    return devicons.get_icon(fs_entry.fname, fs_entry.ftype) .. " " .. escaped .. ftype_to_suffix(fs_entry.ftype)
+  else
+    return escaped .. ftype_to_suffix(fs_entry.ftype)
+  end
 end
 
 function M.write_fs_entries(fs_entries, track_fname)
