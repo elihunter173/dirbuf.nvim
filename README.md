@@ -32,12 +32,12 @@ higher.
 ### Notes
 
 If you use [`nvim-tree.lua`](https://github.com/kyazdani42/nvim-tree.lua), you
-must disable the `:help nvim-tree.update_to_buf_dir` option. Otherwise, Dirbuf
+must disable the `:help nvim-tree.hijack_directories` option. Otherwise, Dirbuf
 will fail to open directory buffers.
 
 ```lua
 require("nvim-tree").setup {
-    update_to_buf_dir = { enable = false }
+    hijack_directories = { enable = false }
 }
 ```
 
