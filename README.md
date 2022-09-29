@@ -31,14 +31,22 @@ higher.
 
 ### Notes
 
-If you use [`nvim-tree.lua`](https://github.com/kyazdani42/nvim-tree.lua), you
-must disable the `:help nvim-tree.update_to_buf_dir` option. Otherwise, Dirbuf
-will fail to open directory buffers.
+Other filesystem plugins can potentially prevent Dirbuf from opening directory buffers:
+
+* If you use [`nvim-tree.lua`](https://github.com/kyazdani42/nvim-tree.lua),
+  disable the `:help nvim-tree.update_to_buf_dir` option. 
 
 ```lua
 require("nvim-tree").setup {
     update_to_buf_dir = { enable = false }
 }
+```
+
+* If you use [`rnvimr`](https://github.com/kevinhwang91/rnvimr),
+  disable the `:help rnvimr_enable_ex` option. 
+
+```lua
+vim.g.rnvimr_ex_enable = 0
 ```
 
 ## Usage
