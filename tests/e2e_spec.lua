@@ -14,18 +14,21 @@ local function scan_directory(path)
   return directory
 end
 
-local path
+local function lines()
+  return api.nvim_buf_get_lines(0, 0, -1, true)
+end
 
 local function expect_lines(expected)
-  assert.same(expected, api.nvim_buf_get_lines(0, 0, -1, true))
+  assert.same(expected, lines())
 end
 
 local function expect_directory(expected)
+  local path = vim.api.nvim_buf_get_name(0)
   assert.same(expected, scan_directory(path))
 end
 
 local function open_dirbuf_of(directory)
-  path = assert(uv.fs_mkdtemp("/tmp/dirbuf-XXXXXX"))
+  local path = assert(uv.fs_mkdtemp("/tmp/dirbuf-XXXXXX"))
   for fname, ftype in pairs(directory) do
     if ftype == "directory" then
       vim.fn.mkdir(path .. "/" .. fname)
@@ -38,7 +41,11 @@ local function open_dirbuf_of(directory)
   vim.cmd("Dirbuf " .. vim.fn.fnameescape(path))
 end
 
--- TODO: Figure out how to use feedkeys
+-- TODO: Use feed
+local function feed(keys)
+  vim.fn.feedkeys(keys, "x")
+end
+
 describe("end-to-end", function()
   it("edits", function()
     open_dirbuf_of({ a = "file", b = "file", c = "directory" })
@@ -66,11 +73,11 @@ describe("end-to-end", function()
     open_dirbuf_of({ a = "directory", b = "file" })
     expect_lines({ [[#00000001	a/]], [[#00000002	b]] })
     require("dirbuf").enter()
-    expect_lines({""})
+    expect_lines({ "" })
     require("dirbuf").jump_history(-1)
     expect_lines({ [[#00000001	a/]], [[#00000002	b]] })
     require("dirbuf").jump_history(1)
-    expect_lines({""})
+    expect_lines({ "" })
   end)
 
   it(":DirbufSync -confirm smoke test", function()
@@ -87,5 +94,15 @@ describe("end-to-end", function()
       vim.cmd("Dirbuf")
       vim.cmd("DirbufSync -some-fake-option")
     end)
+    vim.cmd("bdelete!")
+  end)
+
+  -- TODO: Figure out how to trigger
+  -- https://github.com/elihunter173/dirbuf.nvim/issues/48 on commit e004455
+  pending("works with autochdir", function()
+    vim.opt.autochdir = true
+    feed("-")
+    assert.is_not.same({ "" }, lines())
+    vim.opt.autochdir = false
   end)
 end)

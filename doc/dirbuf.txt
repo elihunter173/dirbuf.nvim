@@ -66,13 +66,9 @@ Buffer-local (filetype=dirbuf) ~
 ==============================================================================
 COMMANDS                                                       *dirbuf-commands*
 
-:Dirbuf                                                         *dirbuf-:Dirbuf*
-    Opens the |current-directory|.
-
-:Dirbuf {path}
-    Opens the directory at {path}, or its parent if {path} is a file.
-    To open the parent directory of the current file: >
-        :Dirbuf %
+:Dirbuf [path]                                                  *dirbuf-:Dirbuf*
+    Opens the directory at [path], or its parent if [path] is a file, or the
+    parent of the current file if [path] is not given.
 
 :DirbufQuit                                                 *dirbuf-:DirbufQuit*
     Quits and returns to the original file.

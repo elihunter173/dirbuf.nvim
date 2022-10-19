@@ -170,7 +170,7 @@ end
 
 function M.open(path)
   if path == "" then
-    path = "."
+    path = api.nvim_buf_get_name(CURRENT_BUFFER)
   end
   path = normalize_path(directify(path))
 
@@ -192,6 +192,15 @@ function M.open(path)
   end
   local history, history_index = vim.b.dirbuf_history, vim.b.dirbuf_history_index
   vim.cmd(keepalt .. " noautocmd edit " .. vim.fn.fnameescape(path))
+
+  -- Sanity check: If we're not in the file we just edited, something went
+  -- wrong. This can happen if someone has `:set nohidden confirm`,
+  -- accidentally opens dirbuf, and hits escape at the save prompt. The edit
+  -- "fails" without raising an error
+  if api.nvim_buf_get_name(CURRENT_BUFFER) ~= path then
+    return
+  end
+
   M.init_dirbuf(history, history_index, true, from_path)
 end
 
