@@ -100,12 +100,14 @@ dirbuf.setup({opts})                                            *dirbuf.setup()*
             show_hidden = true,
             sort_order = "default",
             write_cmd = "DirbufSync",
+            file_handlers = {},
         }
 
 
 dirbuf.enter({cmd})                                             *dirbuf.enter()*
     Performs {cmd} ("edit", "vsplit", "split", "tabedit") on the path
-    currently under the cursor.
+    currently under the cursor. If a `file_handlers` table is configured
+    for the current filetype, that command will take precidence.
 
 dirbuf.get_cursor_path()                              *dirbuf.get_cursor_path()*
     Returns the absolute path of the filesystem entry under the cursor in the
@@ -118,6 +120,14 @@ OPTIONS                                                         *dirbuf-options*
 |hash_padding| (default: `2`)
     Number of characters of padding between the file hashes and the longest
     filename. This must be an integer larger than 1.
+
+|file_handlers| (default: `{}`)
+    A table of file handlers which allows executing a different command on
+    the currently highlighted file (default 'edit').
+
+    i.e. setting this option as the table `file_handlers = { wav = "!afplay" }` 
+    would execute the macOS `afplay` command line audio player on any files
+    which have the file extension of `.wav`
 
 |show_hidden| (default: `true`)
     Whether Dirbuf should display hidden files (i.e. "dot files") by default

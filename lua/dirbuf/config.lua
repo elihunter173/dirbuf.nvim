@@ -51,6 +51,14 @@ local CONFIG_SPEC = {
       end
     end,
   },
+  file_handlers = {
+    default = {},
+    check = function(val)
+      if type(val) ~= "table" then
+        return "must be a table of filetypes and their handlers, received " .. type(val)
+      end
+    end
+  },
 }
 
 local user_config = {}
